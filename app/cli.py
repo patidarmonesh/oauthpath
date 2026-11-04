@@ -9,7 +9,7 @@ import sys
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from app.config import DATABASE_PATH, live_generation_configured
+from app.config import DATABASE_PATH, live_generation_configured, JOB_TIMEOUT_SECONDS
 from app.store import Store
 from app.pipeline import run_pipeline
 from app.render import render_markdown

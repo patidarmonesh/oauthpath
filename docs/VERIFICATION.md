@@ -167,7 +167,7 @@ During execution, the pipeline runs under strict architectural bounds:
   - Pre-renders server-side HTML and provides exact Markdown export via `GET /guides/{guide_id}/versions/{version}.md`.
 
 ### Execution Status
-Not run yet with real credentials. The pipeline has been comprehensively verified across 205 automated tests with simulated fixtures. Once run with live API keys, the actual terminal log will be captured here.
+Not run yet with real credentials. The pipeline has been comprehensively verified across 221 automated tests across 8 test modules with simulated fixtures. Once run with live API keys, the actual terminal log will be captured here.
 
 Planned terminal log output format:
 ```

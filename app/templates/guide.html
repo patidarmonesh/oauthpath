@@ -244,12 +244,13 @@
     <section class="section">
         <h2>Setup attempts</h2>
         <table class="attempts-table">
-            <thead><tr><th>ID</th><th>Action</th><th>Environment</th><th>Status</th><th>Observed result</th><th>Limitation</th></tr></thead>
+            <thead><tr><th>ID</th><th>Action</th><th>Scenario</th><th>Environment</th><th>Status</th><th>Observed result</th><th>Limitation</th></tr></thead>
             <tbody>
                 {% for a in guide.attempts %}
-                <tr>
+                <tr id="attempt-{{ a.id }}">
                     <td>{{ a.id }}</td>
                     <td>{{ a.action }}</td>
+                    <td>{{ a.scenario or '—' }}</td>
                     <td>{{ a.environment }}</td>
                     <td><span class="status-{{ a.status }}">{{ a.status }}</span></td>
                     <td>{{ a.observed_result }}</td>
@@ -318,7 +319,7 @@
         <h3>Claims</h3>
         <table class="claims-table">
             <thead>
-                <tr><th>ID</th><th>Claim</th><th>Conditions</th><th>Basis</th><th>Sources</th><th>Excerpt</th><th>Excerpt status</th><th>Review</th><th>Notes</th></tr>
+                <tr><th>ID</th><th>Claim</th><th>Conditions</th><th>Basis</th><th>Sources</th><th>Attempts</th><th>Excerpt</th><th>Excerpt status</th><th>Review</th><th>Notes</th></tr>
             </thead>
             <tbody>
                 {% for claim in guide.guide.claims %}
@@ -328,6 +329,15 @@
                     <td>{{ claim.conditions or '—' }}</td>
                     <td><span class="basis-{{ claim.basis }}">{{ claim.basis }}</span></td>
                     <td>{{ claim.source_ids | join(', ') if claim.source_ids else '—' }}</td>
+                    <td>
+                        {% if claim.attempt_ids %}
+                            {% for aid in claim.attempt_ids %}
+                                <a href="#attempt-{{ aid }}">{{ aid }}</a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
                     <td>
                         {% if claim.excerpt %}
                             {% if claim.excerpt | length > 60 %}

@@ -82,7 +82,7 @@ Input → Resolver → Composio Lookup → Research Agent → Synthesis → Vali
 
 ## Test Suite & Automated Coverage
 
-The project includes an automated test suite of **205 unit, integration, and regression tests** across 7 test modules, run via `pytest`:
+The project includes an automated test suite of **221 unit, integration, and regression tests** across 8 test modules, run via `pytest`:
 - **Smoke Tests (`tests/smoke_test.py` - 10 tests)**: Route precedence, review fields immutability, gate evidence enforcement, Composio claims preservation, difficulty on explicit unknown gates, schema enums, domain-website mismatch protection, input validation, and ambiguous candidate prefill.
 - **Core Specification Tests (`tests/test_oauthpath.py` - 22 tests)**: Estimate normalization, zero-estimate preservation, URL validation, claims & evidence rules, Composio toolkit matching, deterministic difficulty calculation, excerpt verification, SQLite version immutability, markdown table escaping, and web routes.
 - **Pipeline E2E & Edge-Case Tests (`tests/test_pipeline_e2e.py` - 22 tests)**: Multi-turn research tool calling (`web_search` and `web_fetch`), real SDK 2.4.0 `Message.model_validate` shapes, synthesis `max_tokens` truncation retry, dual rendering parity between `render_markdown` and `guide.html`, and base guide validation.
@@ -90,10 +90,11 @@ The project includes an automated test suite of **205 unit, integration, and reg
 - **Security & Injection Tests (`tests/test_security_audit.py` - 39 tests)**: SQL injection protection via parameterization and column allowlists, XSS autoescaping, network boundary defense against SSRF / raw IPs, error sanitization, and IP rate limiting.
 - **Code Review Regressions (`tests/test_code_review_regressions.py` - 26 tests)**: Regressions for R1–R10, Findings 1–8, Follow-Up Items 1–4, and research deadline/timeout partial saving: secret sanitization, non-mutating reviewed record ingestion, word-boundary toolkit matching without false domain sharing, shared-domain candidate disambiguation, unsupported step qualification, stale hidden website state reset, artifact text link preservation, research wrap-up deadline buffers, next action schema string type preservation, sibling product conflict prevention on all domains, genuine blocker observation support, research phase cancellation cleanup, user website conflict preservation without candidate loops, uppercase auth schemes, and research timeout partial guide persistence.
 - **Pipeline Repeatability & Scenarios (`tests/test_pipeline_repeatability_and_scenarios.py` - 18 tests)**: Full input-to-HTML/export pipeline execution (`/api/jobs` -> polling -> disk reload -> HTML -> Markdown export), pipeline repetition (3 passes: fresh db, repeated cache hit, force refresh v2), unfamiliar app corroboration with NewCloud fixtures and absence of cross-product text, Composio custom/managed/unsupported modes, missing keys, delayed call timeouts, cancellation failure modes, ambiguous name candidate reload, idempotent seed imports across 3 server restarts, and concurrency guard.
+- **Full Review Finding Regressions (`tests/test_full_review_findings.py` - 16 tests)**: Dedicated boundary regressions for Findings 1–9 from `docs/FULL_CODE_REVIEW.md`: CLI timeout & error exit codes, reviewed import rejection of unsourced claims and synthetic attempts, two-path Composio promotion with unique step IDs, gate reversal claim text updates with history preservation, base version identity and scenario mismatch rejections, canonical attempt loading with qualified product names, preparation step idempotence and URL preservation, retry link preservation of user-typed website and scenario parameters, rendered attempt references across Markdown and HTML, and conflicting model guess rejection preserving user domain and coherent name.
 
-All 205 tests pass cleanly:
+All 221 tests pass cleanly:
 ```
-======================= 205 passed, 1 warning in 15.04s =======================
+======================= 221 passed, 1 warning in 32.90s =======================
 ```
 
 - **Browser DOM Check (`scripts/verify_browser.py`)**: Local verification script that launches headless Chrome to inspect server-rendered DOM elements and form attributes (note: targets a hardcoded Windows Chrome path `C:\Program Files\Google\Chrome\Application\chrome.exe`).

@@ -477,6 +477,7 @@ class TestPromotionWorkflow:
             id="K1",
             text="Provider uses OAuth 2.0 authorization code grant",
             basis="documented",
+            source_ids=["S1"],
             review_result="supported",
             support_note="Verified against official RFC documentation by Alice",
         )

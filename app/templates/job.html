@@ -23,7 +23,7 @@
 
         <div id="error-box" class="error-box" style="{% if job.status in ('failed', 'interrupted') %}display: block;{% else %}display: none;{% endif %}">
             <p id="error-message">{% if job.status in ('failed', 'interrupted') %}{{ job.error_message }}{% if job.error_id and job.error_id not in (job.error_message or '') %} (Error ID: {{ job.error_id }}){% endif %}{% endif %}</p>
-            <a href="/?app_name={{ job.app_name | urlencode }}&feature={{ job.feature | urlencode }}&audience={{ job.audience | urlencode }}" class="btn">Retry</a>
+            <a href="/?app_name={{ job.app_name | urlencode }}{% if job.website %}&website={{ job.website | urlencode }}{% endif %}&feature={{ job.feature | urlencode }}&audience={{ job.audience | urlencode }}{% if job.force %}&force=true{% endif %}" class="btn">Retry</a>
         </div>
 
         <div id="needs-input-box" class="error-box" style="{% if job.status == 'needs_input' %}display: block;{% else %}display: none;{% endif %}">
@@ -52,8 +52,11 @@
 {% block scripts %}
 <script>
 const jobId = "{{ job.id }}";
-const feature = {{ job.feature | tojson }};
-const audience = {{ job.audience | tojson }};
+const appName = {{ (job.app_name or "") | tojson }};
+const website = {{ (job.website or "") | tojson }};
+const feature = {{ (job.feature or "") | tojson }};
+const audience = {{ (job.audience or "") | tojson }};
+const force = {{ (true if job.force else false) | tojson }};
 const terminal = ['succeeded', 'partial', 'needs_input', 'failed', 'interrupted'];
 
 function poll() {
@@ -105,6 +108,19 @@ function poll() {
                     msg += ' (Error ID: ' + data.error_id + ')';
                 }
                 if (errMsg) errMsg.textContent = msg;
+                const retryLink = errBox ? errBox.querySelector('a.btn') : null;
+                if (retryLink) {
+                    let rUrl = '/?app_name=' + encodeURIComponent(data.app_name || appName);
+                    const ws = (data.website !== undefined && data.website !== null) ? data.website : website;
+                    if (ws) rUrl += '&website=' + encodeURIComponent(ws);
+                    const ft = (data.feature !== undefined && data.feature !== null) ? data.feature : feature;
+                    if (ft) rUrl += '&feature=' + encodeURIComponent(ft);
+                    const aud = (data.audience !== undefined && data.audience !== null) ? data.audience : audience;
+                    if (aud) rUrl += '&audience=' + encodeURIComponent(aud);
+                    const fc = (data.force !== undefined && data.force !== null) ? data.force : force;
+                    if (fc) rUrl += '&force=true';
+                    retryLink.href = rUrl;
+                }
                 if (errBox) errBox.style.display = 'block';
                 return;
             }

@@ -29,13 +29,42 @@ from app.store import Store
 
 def _load_attempts_for_provider(provider_name: str, domain: str = "") -> list[Attempt]:
     """Load observed setup attempts from data/attempts/ matching the provider."""
+    import re
+    from app.resolver import SHARED_COMPANY_DOMAINS, TOOLKIT_ALIASES
+
     attempts_dir = Path("data/attempts")
     if not attempts_dir.exists():
         return []
 
-    targets = {provider_name.lower().strip()}
+    p_clean = provider_name.lower().strip()
+    targets = {p_clean}
+
+    # Extract base name without parenthetical qualifiers (e.g. 'Gmail (Google)' -> 'gmail')
+    base_name = re.sub(r'\(.*?\)', '', p_clean).strip()
+    if base_name:
+        targets.add(base_name)
+
+    # Extract any parenthetical words (e.g. 'X (Twitter)' -> 'twitter')
+    for inner in re.findall(r'\((.*?)\)', p_clean):
+        w = inner.strip().lower()
+        if w:
+            targets.add(w)
+
+    # Add canonical toolkit slugs and aliases
+    for t in list(targets):
+        slug = TOOLKIT_ALIASES.get(t)
+        if slug:
+            targets.add(slug)
+    for alias, slug in TOOLKIT_ALIASES.items():
+        if slug in targets:
+            targets.add(alias)
+
+    # Only match by domain if domain is NOT a shared company domain (to prevent cross-product sibling pollution)
     if domain:
-        targets.add(domain.lower().strip())
+        d_lower = domain.lower().strip()
+        if d_lower not in SHARED_COMPANY_DOMAINS:
+            targets.add(d_lower)
+
     targets.discard("")
 
     results: list[Attempt] = []
@@ -50,9 +79,19 @@ def _load_attempts_for_provider(provider_name: str, domain: str = "") -> list[At
             if "[SYNTHETIC" in str(data.get("observed_result", "")) or "[SYNTHETIC" in str(data.get("limitation", "")):
                 continue
             p = str(data.get("provider", "")).lower().strip()
+            p_slug = str(data.get("toolkit_slug", "") or data.get("toolkit", "")).lower().strip()
             p_domain = str(data.get("domain", "")).lower().strip()
-            # Require exact match on provider name or domain to prevent false substring attachments (e.g. 'x' matching 'Xero')
-            if (p and p in targets) or (p_domain and p_domain in targets):
+
+            # Match on canonical provider name, toolkit slug, or dedicated domain
+            matched = False
+            if p and p in targets:
+                matched = True
+            elif p_slug and p_slug in targets:
+                matched = True
+            elif p_domain and p_domain in targets:
+                matched = True
+
+            if matched:
                 results.append(Attempt(**data))
         except Exception:
             continue

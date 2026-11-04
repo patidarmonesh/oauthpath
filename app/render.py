@@ -273,11 +273,11 @@ def render_markdown(guide: GuideRecord) -> str:
     if guide.attempts:
         lines.append("## Setup attempts")
         lines.append("")
-        lines.append("| ID | Action | Environment | Status | Observed result | Limitation |")
-        lines.append("|---|---|---|---|---|---|")
+        lines.append("| ID | Action | Scenario | Environment | Status | Observed result | Limitation |")
+        lines.append("|---|---|---|---|---|---|---|")
         for a in guide.attempts:
             lines.append(
-                f"| {escape_cell(a.id)} | {escape_cell(a.action)} | {escape_cell(a.environment)} | "
+                f"| {escape_cell(a.id)} | {escape_cell(a.action)} | {escape_cell(a.scenario or '—')} | {escape_cell(a.environment)} | "
                 f"{escape_cell(a.status)} | {escape_cell(a.observed_result)} | {escape_cell(a.limitation)} |"
             )
         lines.append("")
@@ -326,16 +326,17 @@ def render_markdown(guide: GuideRecord) -> str:
     if g.claims:
         lines.append("### Claims")
         lines.append("")
-        lines.append("| ID | Claim | Conditions | Basis | Sources | Excerpt | Excerpt status | Review | Support note |")
-        lines.append("|---|---|---|---|---|---|---|---|---|")
+        lines.append("| ID | Claim | Conditions | Basis | Sources | Attempts | Excerpt | Excerpt status | Review | Support note |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|")
         for claim in g.claims:
             sources_str = ", ".join(claim.source_ids) if claim.source_ids else "—"
+            attempts_str = ", ".join(claim.attempt_ids) if claim.attempt_ids else "—"
             excerpt_display = claim.excerpt or "—"
             review_str = claim.review_result.replace("_", " ") if hasattr(claim, "review_result") else "not reviewed"
             support_note = claim.support_note or "—"
             lines.append(
                 f"| {escape_cell(claim.id)} | {escape_cell(claim.text)} | {escape_cell(claim.conditions or '—')} | "
-                f"{escape_cell(claim.basis)} | {escape_cell(sources_str)} | {escape_cell(excerpt_display)} | "
+                f"{escape_cell(claim.basis)} | {escape_cell(sources_str)} | {escape_cell(attempts_str)} | {escape_cell(excerpt_display)} | "
                 f"{escape_cell(claim.excerpt_status)} | {escape_cell(review_str)} | {escape_cell(support_note)} |"
             )
         lines.append("")

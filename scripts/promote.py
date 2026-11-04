@@ -53,6 +53,7 @@ def main():
     parser.add_argument("--export-only", action="store_true",
                         help="Export a working copy instead of promoting")
     parser.add_argument("--from-file", help="Path to edited JSON working copy to promote")
+    parser.add_argument("--note", default="", help="Substantive support note for the audited gate verification claim")
 
     args = parser.parse_args()
     store = Store(DATABASE_PATH)
@@ -110,17 +111,23 @@ def main():
 
         # For edited-file promotion, verify base version exists and has same provider/scenario
         base_v = guide.version if guide.version > 0 else (guide.review.based_on_version if guide.review else None)
-        if base_v and base_v > 0:
-            base = store.get_guide(guide.id, base_v)
-            if not base:
-                print(f"ERROR: Base guide version {base_v} not found in store")
-                sys.exit(1)
-            if base.provider.name.lower() != guide.provider.name.lower():
-                print(f"ERROR: Provider mismatch between base ({base.provider.name}) and review ({guide.provider.name})")
-                sys.exit(1)
-            if base.scenario.feature != guide.scenario.feature or base.scenario.audience != guide.scenario.audience:
-                print(f"ERROR: Scenario mismatch between base and review copy")
-                sys.exit(1)
+        if not base_v or base_v <= 0:
+            print("ERROR: Promotion from file requires an existing base version (guide.version or review.based_on_version must be > 0)")
+            sys.exit(1)
+
+        base = store.get_guide(guide.id, base_v)
+        if not base:
+            print(f"ERROR: Base guide version {base_v} not found in store")
+            sys.exit(1)
+        if base.provider.name.lower() != guide.provider.name.lower():
+            print(f"ERROR: Provider name mismatch between base ({base.provider.name}) and review ({guide.provider.name})")
+            sys.exit(1)
+        if (base.provider.official_domain or "").lower() != (guide.provider.official_domain or "").lower():
+            print(f"ERROR: Provider domain mismatch between base ({base.provider.official_domain}) and review ({guide.provider.official_domain})")
+            sys.exit(1)
+        if base.scenario.feature != guide.scenario.feature or base.scenario.audience != guide.scenario.audience or base.scenario.deployment != guide.scenario.deployment:
+            print(f"ERROR: Scenario mismatch between base and review copy (feature, audience, or deployment changed)")
+            sys.exit(1)
 
         valid, err = validate_reviewed_record(guide)
         if not valid:
@@ -229,6 +236,8 @@ def main():
             attempt_ids.append(args.attempt_id)
             basis = "observed"
 
+        support_note = args.note.strip() if getattr(args, "note", None) and args.note.strip() else f"Gate '{gate_kind}' state '{new_state}' reviewed and verified by {args.reviewer}"
+
         # Add or update claim
         existing_claim = next((c for c in guide.guide.claims if c.id == cid), None)
         if not existing_claim:
@@ -239,15 +248,20 @@ def main():
                 source_ids=source_ids,
                 attempt_ids=attempt_ids,
                 review_result="supported",
-                support_note=f"Gate '{gate_kind}' reviewed and verified by {args.reviewer}",
+                support_note=support_note,
             )
             guide.guide.claims.append(existing_claim)
         else:
+            existing_claim.text = claim_text
             existing_claim.basis = basis
-            existing_claim.source_ids = source_ids or existing_claim.source_ids
-            existing_claim.attempt_ids = attempt_ids or existing_claim.attempt_ids
+            if source_ids:
+                existing_claim.source_ids = source_ids
+                existing_claim.attempt_ids = []
+            elif attempt_ids:
+                existing_claim.attempt_ids = attempt_ids
+                existing_claim.source_ids = []
             existing_claim.review_result = "supported"
-            existing_claim.support_note = f"Gate '{gate_kind}' reviewed and verified by {args.reviewer}"
+            existing_claim.support_note = support_note
 
         if cid not in audited_ids:
             audited_ids.append(cid)

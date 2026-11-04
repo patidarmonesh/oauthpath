@@ -205,7 +205,7 @@ def validate_claims(guide: GuideRecord) -> list[str]:
                 c.basis = ClaimBasis.unknown.value
                 warnings.append(f"Claim {c.id}: 'observed' without attempt or sources, downgraded to 'unknown'")
 
-        if c.basis == ClaimBasis.documented.value and not c.source_ids and c.review_result == "not_reviewed":
+        if c.basis == ClaimBasis.documented.value and not c.source_ids:
             c.basis = ClaimBasis.unknown.value
             warnings.append(f"Claim {c.id}: 'documented' without valid sources, downgraded to 'unknown'")
 
@@ -402,27 +402,27 @@ def validate_composio(guide: GuideRecord) -> list[str]:
             basis="documented",
         ))
 
-    wiring_step = DraftStep(
-        id="composio_wiring",
-        title="Connect through Composio",
-        instructions=(
-            f"Create a Composio auth config for toolkit `{ci.toolkit_slug}` "
-            f"with your client ID and secret (custom auth, {auth_method}, "
-            f"oauth_redirect_uri = {COMPOSIO_CALLBACK_URL}). "
-            f"Create a Connect Link for a test user, complete consent, "
-            f"and confirm an ACTIVE connected account via the API."
-        ),
-        owner="agent_prepares_you_submit",
-        success_condition="Connected account status is ACTIVE via the Composio API",
-        effort=DraftEstimate(known=True, low=5, high=20, unit="minutes",
-                              basis="author_estimate",
-                              explanation="Assumes the provider app already exists"),
-        claim_ids=["KC1", "KC2"],
-    )
-    for path in guide.guide.paths:
-        if path.id.startswith("own_app"):
-            if not any(s.id == "composio_wiring" for s in path.steps):
-                path.steps.append(wiring_step)
+    own_app_paths = [p for p in guide.guide.paths if p.id.startswith("own_app")]
+    for idx, path in enumerate(own_app_paths):
+        step_id = "composio_wiring" if idx == 0 else f"{path.id}_composio_wiring"
+        if not any(s.id in (step_id, "composio_wiring") or s.id.endswith("_composio_wiring") for s in path.steps):
+            path.steps.append(DraftStep(
+                id=step_id,
+                title="Connect through Composio",
+                instructions=(
+                    f"Create a Composio auth config for toolkit `{ci.toolkit_slug}` "
+                    f"with your client ID and secret (custom auth, {auth_method}, "
+                    f"oauth_redirect_uri = {COMPOSIO_CALLBACK_URL}). "
+                    f"Create a Connect Link for a test user, complete consent, "
+                    f"and confirm an ACTIVE connected account via the API."
+                ),
+                owner="agent_prepares_you_submit",
+                success_condition="Connected account status is ACTIVE via the Composio API",
+                effort=DraftEstimate(known=True, low=5, high=20, unit="minutes",
+                                      basis="author_estimate",
+                                      explanation="Assumes the provider app already exists"),
+                claim_ids=["KC1", "KC2"],
+            ))
 
     # Add managed path if available + Source C3 + Claim KC3
     if ci.managed_oauth == ManagedOAuth.available.value:
@@ -757,25 +757,31 @@ def validate_references(guide: GuideRecord) -> list[str]:
                 warnings.append(
                     f"Gate {gate.kind}: all supporting claims are 'unknown' — assertion is weakly supported"
                 )
+        path_has_unknown_gates = any(g.state == "unknown" for g in path.gates)
         for step in path.steps:
             step.claim_ids = _prune(step.claim_ids, f"Step {step.id}")
-            # If step claims are unsupported, or has unknown gates and asserts launch advice:
             step_unsupported = _is_unsupported(step.claim_ids)
             step_text = f"{step.title} {step.instructions}".lower()
-            is_step_launch = any(pat in step_text for pat in unconditional_launch_patterns) or any(
-                term in step_text for term in ("publish", "launch", "approval", "production", "go live")
+            is_prep = any(term in step_text for term in ("prepare", "draft", "gather", "create test", "test app", "configure", "submit for review", "request review", "materials", "review package", "documentation"))
+            is_unconditional_launch = any(pat in step_text for pat in unconditional_launch_patterns)
+            is_step_launch = is_unconditional_launch or (
+                not is_prep and any(term in step_text for term in ("publish", "launch", "production", "go live"))
             )
-            if step_unsupported and is_step_launch:
-                warnings.append(f"Step {step.id}: unsupported launch assertion qualified")
-                step.title = "Verify provider approval requirements"
-                step.instructions = "Verify whether provider approval or security review is required before publishing (unconfirmed)"
-                step.action_url = ""
-            elif (has_unknown_gates and is_step_launch) or step_unsupported:
-                if is_step_launch:
-                    step.title = f"Verify requirement: {step.title}"
-                    step.instructions = f"Verify requirement: {step.instructions}"
+            if step_unsupported and (is_unconditional_launch or is_step_launch):
+                if step.title != "Verify provider approval requirements":
+                    warnings.append(f"Step {step.id}: unsupported launch assertion qualified")
+                    step.title = "Verify provider approval requirements"
+                    step.instructions = "Verify whether provider approval or security review is required before publishing (unconfirmed)"
                     step.action_url = ""
-                elif not step.instructions.startswith("[Unconfirmed]") and not step.instructions.lower().startswith("verify"):
+                    step.success_condition = "Provider approval requirements and gates are verified"
+            elif path_has_unknown_gates and is_step_launch and not is_prep:
+                if not step.title.startswith("Verify requirement:"):
+                    step.title = f"Verify requirement: {step.title}"
+                if not step.instructions.startswith("Verify requirement:"):
+                    step.instructions = f"Verify requirement: {step.instructions}"
+                step.action_url = ""
+            elif step_unsupported and not is_prep:
+                if not step.instructions.startswith("[Unconfirmed]") and not step.instructions.lower().startswith("verify"):
                     warnings.append(f"Step {step.id}: evidence is unconfirmed — qualifying step")
                     step.instructions = f"[Unconfirmed] {step.instructions}"
 
@@ -930,6 +936,8 @@ def validate_reviewed_record(guide: GuideRecord) -> tuple[bool, str]:
         if a.id in seen_aids:
             return False, f"Duplicate attempt ID: {a.id!r}"
         seen_aids.add(a.id)
+        if getattr(a, "example", False) or a.status == "example" or str(a.id).startswith("EXAMPLE-") or (a.limitation and "[SYNTHETIC" in a.limitation):
+            return False, f"Attempt {a.id!r} is a synthetic example record and cannot be included in a reviewed guide"
 
     seen_cids = set()
     for c in guide.guide.claims:
@@ -957,12 +965,19 @@ def validate_reviewed_record(guide: GuideRecord) -> tuple[bool, str]:
     attempts_by_id = {a.id: a for a in guide.attempts}
 
     for claim in guide.guide.claims:
+        if claim.basis == "documented" and not claim.source_ids:
+            return False, f"Claim {claim.id} has 'documented' basis but no valid source references"
+        if claim.basis == "observed" and not claim.attempt_ids:
+            return False, f"Claim {claim.id} has 'observed' basis but no valid attempt references"
         for sid in claim.source_ids:
             if sid not in source_ids:
                 return False, f"Claim {claim.id} references nonexistent source ID: {sid!r}"
         for aid in claim.attempt_ids:
             if aid not in attempt_ids:
                 return False, f"Claim {claim.id} references nonexistent attempt ID: {aid!r}"
+            att = attempts_by_id.get(aid)
+            if att and (getattr(att, "example", False) or att.status == "example" or str(att.id).startswith("EXAMPLE-") or (att.limitation and "[SYNTHETIC" in att.limitation)):
+                return False, f"Claim {claim.id} cites synthetic example attempt: {aid!r}"
 
     if guide.status == GuideStatus.reviewed.value and guide.review:
         existing_claim_map = {c.id: c for c in guide.guide.claims}
@@ -971,37 +986,45 @@ def validate_reviewed_record(guide: GuideRecord) -> tuple[bool, str]:
             if c.review_result == "supported":
                 if c.basis == "unknown":
                     return False, f"Audited claim {cid} is marked 'supported' but has 'unknown' basis"
-                for sid in c.source_ids:
-                    src = sources_by_id.get(sid)
-                    if not src or src.retrieval_status == "failed":
-                        return False, f"Audited claim {cid} is marked 'supported' but cites failed or missing source {sid!r}"
-                for aid in c.attempt_ids:
-                    att = attempts_by_id.get(aid)
-                    if not att:
-                        return False, f"Audited claim {cid} is marked 'supported' but cites missing attempt {aid!r}"
-                    if att.status == "succeeded":
-                        pass
-                    elif att.status in ("blocked", "failed"):
-                        # Blocked or failed attempts may validly support blocker or failure descriptions,
-                        # but cannot support claims asserting successful connection or lack of review.
-                        c_text_lower = c.text.lower()
-                        unsupportable_by_failure = (
-                            "no approval needed",
-                            "no approval is needed",
-                            "no review needed",
-                            "no review required",
-                            "review not required",
-                            "successfully connected",
-                            "connection succeeded",
-                            "setup succeeded",
-                            "instant activation",
-                            "ready for production",
-                            "no admin approval",
-                        )
-                        if any(pat in c_text_lower for pat in unsupportable_by_failure):
-                            return False, f"Audited claim {cid} asserts successful connection or lack of review, but cites {att.status} attempt {aid!r}"
-                    else:
-                        return False, f"Audited claim {cid} cites attempt {aid!r} with unsupported status {att.status!r}"
+                if c.basis == "documented":
+                    if not c.source_ids:
+                        return False, f"Audited claim {cid} is marked 'supported' with 'documented' basis but has no sources"
+                    for sid in c.source_ids:
+                        src = sources_by_id.get(sid)
+                        if not src or src.retrieval_status == "failed":
+                            return False, f"Audited claim {cid} is marked 'supported' but cites failed or missing source {sid!r}"
+                elif c.basis == "observed":
+                    if not c.attempt_ids:
+                        return False, f"Audited claim {cid} is marked 'supported' with 'observed' basis but has no attempts"
+                    for aid in c.attempt_ids:
+                        att = attempts_by_id.get(aid)
+                        if not att:
+                            return False, f"Audited claim {cid} is marked 'supported' but cites missing attempt {aid!r}"
+                        if getattr(att, "example", False) or att.status == "example" or str(att.id).startswith("EXAMPLE-") or (att.limitation and "[SYNTHETIC" in att.limitation):
+                            return False, f"Audited claim {cid} cites synthetic example attempt {aid!r}"
+                        if att.status == "succeeded":
+                            pass
+                        elif att.status in ("blocked", "failed"):
+                            # Blocked or failed attempts may validly support blocker or failure descriptions,
+                            # but cannot support claims asserting successful connection or lack of review.
+                            c_text_lower = c.text.lower()
+                            unsupportable_by_failure = (
+                                "no approval needed",
+                                "no approval is needed",
+                                "no review needed",
+                                "no review required",
+                                "review not required",
+                                "successfully connected",
+                                "connection succeeded",
+                                "setup succeeded",
+                                "instant activation",
+                                "ready for production",
+                                "no admin approval",
+                            )
+                            if any(pat in c_text_lower for pat in unsupportable_by_failure):
+                                return False, f"Audited claim {cid} asserts successful connection or lack of review, but cites {att.status} attempt {aid!r}"
+                        else:
+                            return False, f"Audited claim {cid} cites attempt {aid!r} with unsupported status {att.status!r}"
 
         # Organizational review gates cannot be marked not_required solely by setup attempts
         for path in guide.guide.paths:

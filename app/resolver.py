@@ -17,6 +17,8 @@ SHARED_COMPANY_DOMAINS: set[str] = {
     "atlassian.com",
     "microsoft.com",
     "cisco.com",
+    "salesforce.com",
+    "zoho.com",
 }
 
 
@@ -42,6 +44,7 @@ TOOLKIT_ALIASES: dict[str, str] = {
     "gcal": "googlecalendar",
     "google drive": "googledrive",
     "gdrive": "googledrive",
+    "drive": "googledrive",
     "google sheets": "googlesheets",
     "gsheets": "googlesheets",
     "hubspot": "hubspot",
@@ -245,9 +248,11 @@ async def resolve_provider_with_model(
                         reg, _ = parse_domain(c_domain)
 
                     if user_domain:
+                        resolved_name = c_name
                         if reg and reg.lower() != user_domain.lower():
-                            stats["warning"] = f"Using user-specified domain '{user_domain}'; model suggested alternative domain '{reg}'"
-                        return ProviderInfo(name=c_name, official_domain=user_domain, identity_status="assumed"), None, stats
+                            stats["warning"] = f"Using user-specified domain '{user_domain}'; model suggested alternative '{c_name}' on '{reg}'"
+                            resolved_name = app_name  # Retain user's coherent name/domain pair!
+                        return ProviderInfo(name=resolved_name, official_domain=user_domain, identity_status="assumed"), None, stats
 
                     # Bare model JSON can only establish 'assumed' identity per §4 / R4
                     return ProviderInfo(name=c_name, official_domain=reg or "", identity_status="assumed"), None, stats
@@ -415,6 +420,55 @@ def _is_conflicting_sibling(query: str, item: dict) -> bool:
     return False
 
 
+def _has_positive_product_evidence(query: str, item: dict, official_domain: str = "") -> bool:
+    """Check if there is positive product evidence connecting query to item.
+
+    A shared company domain alone is not sufficient; there must be positive
+    name, slug, alias, or distinctive product token correspondence.
+    """
+    query_lower = query.lower().strip()
+    item_name = (item.get("name") or "").lower().strip()
+    item_slug = (item.get("slug") or "").lower().strip()
+
+    if query_lower in (item_name, item_slug):
+        return True
+    if TOOLKIT_ALIASES.get(query_lower) == item_slug:
+        return True
+
+    query_clean = re.sub(r'[^a-z0-9]', '', query_lower)
+    name_clean = re.sub(r'[^a-z0-9]', '', item_name)
+    slug_clean = re.sub(r'[^a-z0-9]', '', item_slug)
+    if query_clean and (query_clean == name_clean or query_clean == slug_clean):
+        return True
+
+    STOPWORDS = {"app", "apps", "cloud", "software", "api", "integration", "tool", "toolkit", "oauth", "the", "for", "and", "by", "platform", "suite"}
+    q_tokens = {w for w in re.findall(r'[a-z0-9]+', query_lower) if w not in STOPWORDS}
+    m_tokens = {w for w in re.findall(r'[a-z0-9]+', item_name) if w not in STOPWORDS}
+    s_tokens = {w for w in re.findall(r'[a-z0-9]+', item_slug) if w not in STOPWORDS}
+    item_tokens = m_tokens | s_tokens
+
+    # Check for distinctive token overlap
+    shared = q_tokens & item_tokens
+    is_shared_domain = official_domain.lower() in SHARED_COMPANY_DOMAINS if official_domain else False
+
+    if is_shared_domain:
+        # On shared company domains (google.com, salesforce.com, etc.), generic company tokens (e.g. 'google', 'salesforce')
+        # do not count as positive product evidence for a specific tool.
+        COMPANY_TOKENS = {"google", "salesforce", "atlassian", "microsoft", "cisco", "zoho"}
+        distinctive_shared = shared - COMPANY_TOKENS
+        return len(distinctive_shared) > 0
+
+    # On non-shared domains, token overlap or matching domain root is positive evidence
+    if shared:
+        return True
+    if official_domain:
+        domain_root = parse_domain(official_domain)[0].split('.')[0]
+        if domain_root and domain_root not in STOPWORDS and domain_root in q_tokens:
+            return True
+
+    return False
+
+
 async def _search_composio(query: str, official_domain: str = "") -> str | None:
     """Search Composio API for a toolkit, requiring corroborated matching."""
     async with httpx.AsyncClient(timeout=10) as client:
@@ -464,15 +518,20 @@ async def _search_composio(query: str, official_domain: str = "") -> str | None:
         # 2. Corroborated domain matching via meta.app_url
         if official_domain:
             domain_matches = []
+            is_shared_domain = official_domain.lower() in SHARED_COMPANY_DOMAINS
             for item in filtered_items:
                 meta = item.get("meta", {}) if isinstance(item.get("meta"), dict) else {}
                 app_url = meta.get("app_url", "")
                 if app_url:
                     reg, _ = parse_domain(app_url)
                     if reg and reg.lower() == official_domain.lower():
-                        # Exclude conflicting sibling products on the same company domain
-                        if not _is_conflicting_sibling(query, item):
-                            domain_matches.append(item)
+                        # Exclude conflicting sibling products
+                        if _is_conflicting_sibling(query, item):
+                            continue
+                        # On shared company domains, domain match alone is insufficient: require positive product evidence
+                        if is_shared_domain and not _has_positive_product_evidence(query, item, official_domain):
+                            continue
+                        domain_matches.append(item)
 
             if len(domain_matches) == 1:
                 return domain_matches[0].get("slug")
@@ -480,7 +539,7 @@ async def _search_composio(query: str, official_domain: str = "") -> str | None:
                 # Ambiguous: multiple matching toolkits on this domain
                 return None
 
-        # 3. Whole-word match — accept only if not a conflicting sibling product
+        # 3. Whole-word match — accept only if not a conflicting sibling product and positively evidenced
         word_matches = []
         if len(query_lower) >= 3:
             pattern = rf"\b{re.escape(query_lower)}\b"
@@ -491,7 +550,7 @@ async def _search_composio(query: str, official_domain: str = "") -> str | None:
                     re.search(pattern, item_name)
                     or re.search(pattern, item_slug)
                 ):
-                    if not _is_conflicting_sibling(query, item):
+                    if not _is_conflicting_sibling(query, item) and _has_positive_product_evidence(query, item, official_domain):
                         word_matches.append(item)
 
         if len(word_matches) == 1:
