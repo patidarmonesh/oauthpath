@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}OAuthPath — OAuth Launch Guides{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Know what it takes to launch your OAuth integration.</h1>
+    <p>Enter an app name or website. Get a guide with the next action, effort vs waiting, launch blockers and who owns them — with visible evidence.</p>
+</section>
+
+<section class="generator">
+    <form id="generate-form" class="gen-form">
+        <input type="hidden" id="prefill_website" name="prefill_website" value="{{ prefill_website }}">
+        <input type="hidden" id="prefill_force" name="prefill_force" value="{{ prefill_force }}">
+        <div class="form-row">
+            <div class="form-group form-group-main">
+                <label for="app_name">App name or website</label>
+                <input type="text" id="app_name" name="app_name" placeholder="e.g. GitHub, Slack, notion.so"
+                       value="{{ prefill_app }}" data-initial-app="{{ prefill_app }}" required autofocus>
+            </div>
+        </div>
+        <div class="form-row form-row-secondary">
+            <div class="form-group">
+                <label for="feature">Feature <span class="optional">(optional)</span></label>
+                <input type="text" id="feature" name="feature"
+                       placeholder="e.g. read messages, send email"
+                       value="{{ prefill_feature }}">
+            </div>
+            <div class="form-group">
+                <label for="audience">Audience</label>
+                <select id="audience" name="audience">
+                    <option value="external customers" {% if prefill_audience == 'external customers' %}selected{% endif %}>External customers</option>
+                    <option value="internal team" {% if prefill_audience == 'internal team' %}selected{% endif %}>Internal team</option>
+                </select>
+            </div>
+            <div class="form-group form-group-btn">
+                <button type="submit" id="gen-btn" {% if not live_enabled %}disabled{% endif %}>
+                    Generate Guide
+                </button>
+            </div>
+        </div>
+        {% if not live_enabled %}
+        <p class="notice">Live generation is not configured on this server. Browse the library below.</p>
+        {% endif %}
+    </form>
+</section>
+
+<section class="library">
+    <h2>Guide library</h2>
+    {% if guides %}
+    <div class="guide-grid">
+        {% for g in guides %}
+        <a href="/guides/{{ g.id }}" class="guide-card">
+            <div class="card-header">
+                <h3>{{ g.provider_name }}</h3>
+                <span class="status-badge status-{{ g.status }}">{{ g.status }}</span>
+            </div>
+            <p class="card-feature">{{ g.feature or 'General OAuth integration' }}</p>
+            <div class="card-meta">
+                <span>{{ g.audience }}</span>
+                <span>v{{ g.version }}</span>
+                {% if g.difficulty and g.difficulty != 'Unknown' %}
+                <span class="difficulty">{{ g.difficulty }}</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No guides yet. Generate one above or check back later.</p>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('generate-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('gen-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting…';
+
+    const appInput = document.getElementById('app_name');
+    const appName = appInput.value.trim();
+    const initialApp = (appInput.getAttribute('data-initial-app') || appInput.defaultValue || '').trim();
+    const feature = document.getElementById('feature').value.trim();
+    const audience = document.getElementById('audience').value;
+
+    const prefillWebsite = (document.getElementById('prefill_website')?.value || '').trim();
+    const prefillForce = (document.getElementById('prefill_force')?.value || '').trim() === 'true';
+
+    let website = '';
+    let force = false;
+
+    // Check if the user changed the product identity from the initial prefilled app
+    const appChanged = initialApp && appName.toLowerCase() !== initialApp.toLowerCase();
+
+    if (!appChanged && prefillWebsite) {
+        website = prefillWebsite;
+        force = prefillForce;
+    } else if (appName.includes('.') && !appName.includes(' ')) {
+        // Newly typed or edited app name looks like a URL/domain
+        website = appName;
+    }
+
+    try {
+        const resp = await fetch('/api/jobs', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                app_name: appName,
+                feature: feature,
+                audience: audience,
+                website: website,
+                force: force,
+            }),
+        });
+
+        if (!resp.ok) {
+            btn.disabled = false;
+            btn.textContent = 'Generate Guide';
+            if (resp.status === 429) {
+                alert('Rate limit reached. Please wait before generating another guide.');
+                return;
+            }
+            const data = await resp.json().catch(() => ({}));
+            let msg = data.detail || 'Failed to start guide generation.';
+            if (Array.isArray(data.detail)) {
+                msg = data.detail.map(d => d.msg || JSON.stringify(d)).join('\n');
+            }
+            alert(msg);
+            return;
+        }
+
+        const data = await resp.json();
+        if (data && data.job_id) {
+            window.location.href = '/jobs/' + data.job_id;
+        } else {
+            alert('Failed to retrieve job ID.');
+            btn.disabled = false;
+            btn.textContent = 'Generate Guide';
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Generate Guide';
+    }
+});
+</script>
+{% endblock %}

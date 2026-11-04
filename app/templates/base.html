@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OAuthPath{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/" class="logo">OAuthPath</a>
+            <span class="tagline">Know what it takes to launch your OAuth integration.</span>
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>OAuthPath · Evidence-labeled OAuth launch guides · <a href="/health">Status</a></p>
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

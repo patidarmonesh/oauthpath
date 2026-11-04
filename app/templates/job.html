@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}OAuthPath — Job {{ job.id }}{% endblock %}
+
+{% block content %}
+<section class="job-progress">
+    <h1>Generating guide</h1>
+    <div class="job-meta">
+        <p><strong>App:</strong> {{ job.app_name }}{% if job.feature %} · <strong>Feature:</strong> {{ job.feature }}{% endif %}</p>
+        <p><strong>Audience:</strong> {{ job.audience }}</p>
+    </div>
+
+    <div class="status-box" id="status-box">
+        <div class="status-indicator">
+            <span class="status-badge status-{{ job.status }}" id="status-badge">{{ job.status }}</span>
+            <span id="stage-text">{{ job.stage }}</span>
+        </div>
+
+        <div class="progress-events" id="events">
+            {% for event in job.events %}
+            <div class="event">{{ event }}</div>
+            {% endfor %}
+        </div>
+
+        <div id="error-box" class="error-box" style="{% if job.status in ('failed', 'interrupted') %}display: block;{% else %}display: none;{% endif %}">
+            <p id="error-message">{% if job.status in ('failed', 'interrupted') %}{{ job.error_message }}{% if job.error_id and job.error_id not in (job.error_message or '') %} (Error ID: {{ job.error_id }}){% endif %}{% endif %}</p>
+            <a href="/?app_name={{ job.app_name | urlencode }}&feature={{ job.feature | urlencode }}&audience={{ job.audience | urlencode }}" class="btn">Retry</a>
+        </div>
+
+        <div id="needs-input-box" class="error-box" style="{% if job.status == 'needs_input' %}display: block;{% else %}display: none;{% endif %}">
+            <p id="disambig-message"><strong>Ambiguous name.</strong> Did you mean one of these?</p>
+            <div id="candidates-list">
+                {% if job.status == 'needs_input' and job.candidates %}
+                    {% for c in job.candidates %}
+                        {% set c_name = c.name if c is mapping else c %}
+                        {% set c_domain = c.domain if (c is mapping and c.domain) else '' %}
+                        <a href="/?app_name={{ c_name | urlencode }}{% if c_domain %}&website={{ c_domain | urlencode }}{% endif %}&feature={{ job.feature | urlencode }}&audience={{ job.audience | urlencode }}" class="btn btn-small">
+                            {{ c_name }}{% if c_domain %} ({{ c_domain }}){% endif %}
+                        </a>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="result-box" style="{% if job.status in ('succeeded', 'partial') %}display: block;{% else %}display: none;{% endif %}">
+            <p>Guide ready!</p>
+            <a id="guide-link" href="{% if job.guide_id and job.guide_version %}/guides/{{ job.guide_id }}/versions/{{ job.guide_version }}{% else %}#{% endif %}" class="btn btn-primary">View Guide{% if job.guide_version %} (v{{ job.guide_version }}){% endif %}</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const jobId = "{{ job.id }}";
+const feature = {{ job.feature | tojson }};
+const audience = {{ job.audience | tojson }};
+const terminal = ['succeeded', 'partial', 'needs_input', 'failed', 'interrupted'];
+
+function poll() {
+    fetch('/api/jobs/' + jobId)
+        .then(r => r.json())
+        .then(data => {
+            const badge = document.getElementById('status-badge');
+            if (badge) {
+                badge.textContent = data.status;
+                badge.className = 'status-badge status-' + data.status;
+            }
+
+            const stage = document.getElementById('stage-text');
+            if (stage) stage.textContent = data.stage || '';
+
+            const events = document.getElementById('events');
+            if (events && data.events) {
+                events.innerHTML = '';
+                data.events.forEach(function(ev) {
+                    const div = document.createElement('div');
+                    div.className = 'event';
+                    div.textContent = ev;
+                    events.appendChild(div);
+                });
+            }
+
+            if (data.status === 'succeeded' || data.status === 'partial') {
+                if (data.guide_id && data.guide_version) {
+                    const guideLink = document.getElementById('guide-link');
+                    if (guideLink) {
+                        guideLink.href = '/guides/' + data.guide_id + '/versions/' + data.guide_version;
+                        guideLink.textContent = 'View Guide (v' + data.guide_version + ')';
+                    }
+                    const resBox = document.getElementById('result-box');
+                    if (resBox) resBox.style.display = 'block';
+                    window.location.href = '/guides/' + data.guide_id + '/versions/' + data.guide_version;
+                } else {
+                    const resBox = document.getElementById('result-box');
+                    if (resBox) resBox.style.display = 'block';
+                }
+                return;
+            }
+
+            if (data.status === 'failed' || data.status === 'interrupted') {
+                const errBox = document.getElementById('error-box');
+                const errMsg = document.getElementById('error-message');
+                let msg = data.error_message || 'An error occurred.';
+                if (data.error_id && !msg.includes(data.error_id)) {
+                    msg += ' (Error ID: ' + data.error_id + ')';
+                }
+                if (errMsg) errMsg.textContent = msg;
+                if (errBox) errBox.style.display = 'block';
+                return;
+            }
+
+            if (data.status === 'needs_input') {
+                const box = document.getElementById('needs-input-box');
+                const list = document.getElementById('candidates-list');
+                if (list) {
+                    list.innerHTML = '';
+                    let candidates = data.candidates || [];
+                    if (typeof candidates === 'string') {
+                        try { candidates = JSON.parse(candidates); } catch(e) { candidates = []; }
+                    }
+                    candidates.forEach(function(c) {
+                        const name = c.name || c;
+                        const domain = c.domain || '';
+                        const a = document.createElement('a');
+                        let url = '/?app_name=' + encodeURIComponent(name);
+                        if (domain) url += '&website=' + encodeURIComponent(domain);
+                        if (feature) url += '&feature=' + encodeURIComponent(feature);
+                        if (audience) url += '&audience=' + encodeURIComponent(audience);
+                        a.href = url;
+                        a.textContent = name + (domain ? ' (' + domain + ')' : '');
+                        a.className = 'btn btn-small';
+                        list.appendChild(a);
+                    });
+                }
+                if (box) box.style.display = 'block';
+                return;
+            }
+
+            // Continue polling while nonterminal
+            setTimeout(poll, 2000);
+        })
+        .catch(function() {
+            setTimeout(poll, 5000);
+        });
+}
+
+// Unconditional immediate poll on load to resolve results or fast state changes
+poll();
+</script>
+{% endblock %}

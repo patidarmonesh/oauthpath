@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+{% block title %}{{ guide.provider.name }} — OAuthPath{% endblock %}
+
+{% block head %}
+<meta property="og:title" content="{{ guide.provider.name }} OAuth Launch Guide — OAuthPath">
+<meta property="og:description" content="OAuth setup and approval guide for {{ guide.provider.name }}">
+<meta property="og:url" content="{{ base_url }}/guides/{{ guide.id }}/versions/{{ guide.version }}">
+{% endblock %}
+
+{% block content %}
+<article class="guide">
+    {# Version banner #}
+    {% if reviewed_version %}
+    <div class="banner banner-info">
+        A <a href="/guides/{{ guide.id }}/versions/{{ reviewed_version }}">reviewed version (v{{ reviewed_version }})</a> is available.
+    </div>
+    {% endif %}
+
+    {# Title and assumptions #}
+    <header class="guide-header">
+        <h1>{{ guide.provider.name }}{% if guide.scenario.feature %} — {{ guide.scenario.feature }}{% endif %}</h1>
+        <div class="guide-meta">
+            <span class="status-badge status-{{ guide.status }}">v{{ guide.version }} · {{ guide.status }}</span>
+            <span>Researched {{ guide.created_at[:10] if guide.created_at else 'pending' }}</span>
+        </div>
+        <p class="assumptions">
+            Assumptions:
+            {% if guide.scenario.feature %}{{ guide.scenario.feature }} · {% endif %}
+            {{ guide.scenario.audience }} · {{ guide.scenario.deployment }}
+            {% for a in guide.scenario.assumptions %} · {{ a }}{% endfor %}
+            <a href="/?app_name={{ guide.provider.name | urlencode }}{% if guide.provider.official_domain %}&website={{ guide.provider.official_domain | urlencode }}{% endif %}&feature={{ guide.scenario.feature | urlencode }}&audience={{ guide.scenario.audience | urlencode }}">[change and regenerate]</a>
+            <a href="/?app_name={{ guide.provider.name | urlencode }}{% if guide.provider.official_domain %}&website={{ guide.provider.official_domain | urlencode }}{% endif %}&feature={{ guide.scenario.feature | urlencode }}&audience={{ guide.scenario.audience | urlencode }}&force=true">[force fresh research]</a>
+        </p>
+    </header>
+
+    {# Evidence line #}
+    <div class="evidence-line">
+        {{ guide_html.evidence_line }}
+    </div>
+
+    {# Composio status #}
+    <div class="composio-status">
+        {% if guide.composio.lookup_status == 'matched' and guide.composio.toolkit_slug %}
+            Composio: toolkit <code>{{ guide.composio.toolkit_slug }}</code>
+            ({{ guide.composio.selected_auth_method or 'unknown method' }});
+            managed OAuth {{ guide.composio.managed_oauth }}
+        {% elif guide.composio.lookup_status == 'no_match' %}
+            Composio: no matching toolkit found by search — availability unknown
+        {% elif guide.composio.lookup_status == 'failed' %}
+            Composio: lookup failed — unknown, which is not the same as unavailable
+        {% else %}
+            Composio: lookup not attempted on this server
+        {% endif %}
+    </div>
+
+    {# Readiness summary #}
+    <section class="section">
+        <h2>Readiness summary</h2>
+        {% for stmt in guide.guide.summary %}
+        <p class="summary-stmt">
+            {{ stmt.text }}
+            {% if stmt.claim_ids %}<span class="claim-refs">[{{ stmt.claim_ids | join(', ') }}]</span>{% endif %}
+        </p>
+        {% endfor %}
+
+        {% set overall = guide.difficulty.get('overall') %}
+        {% if overall %}
+        <p class="difficulty">
+            <strong>Difficulty:</strong> {{ overall.label }}
+            {% for r in overall.reasons %}<br><small>{{ r }}</small>{% endfor %}
+        </p>
+        {% endif %}
+    </section>
+
+    {# Next action #}
+    <section class="section next-action">
+        <h2>Next action</h2>
+        <div class="action-box">
+            <p class="action-instruction"><strong>{{ guide.guide.next_action.instruction }}</strong></p>
+            <p class="action-owner">Owner: {{ guide_html.format_owner(guide.guide.next_action.owner) }}</p>
+            {% if guide.guide.next_action.link_or_artifact %}
+            <p>
+                {% if guide.guide.next_action.link_or_artifact.startswith('https://') and not guide.guide.next_action.link_or_artifact.startswith('[invalid') %}
+                <a href="{{ guide.guide.next_action.link_or_artifact }}" target="_blank" rel="noopener noreferrer">{{ guide.guide.next_action.link_or_artifact }}</a>
+                {% else %}
+                {{ guide.guide.next_action.link_or_artifact }}
+                {% endif %}
+            </p>
+            {% endif %}
+            {% if guide.guide.next_action.success_condition %}
+            <p class="success-condition">Done when: {{ guide.guide.next_action.success_condition }}</p>
+            {% endif %}
+            {% if guide.guide.next_action.claim_ids %}
+            <p class="claim-refs">Evidence: [{{ guide.guide.next_action.claim_ids | join(', ') }}]</p>
+            {% endif %}
+        </div>
+    </section>
+
+    {# Paths #}
+    {% if guide.guide.paths %}
+    <section class="section">
+        <h2>Paths</h2>
+
+        <table class="paths-summary">
+            <thead>
+                <tr><th>Path</th><th>Difficulty</th><th>Setup effort</th><th>Waiting</th></tr>
+            </thead>
+            <tbody>
+                {% for path in guide.guide.paths %}
+                {% set pdiff = guide.difficulty.get(path.id) %}
+                <tr>
+                    <td><a href="#path-{{ path.id }}">{{ path.name }}</a></td>
+                    <td>{{ pdiff.label if pdiff else 'Unknown' }}</td>
+                    <td>{{ guide_html.format_estimate(path.effort) }}</td>
+                    <td>{{ guide_html.format_estimate(path.waiting) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% for path in guide.guide.paths %}
+        <div class="path-detail" id="path-{{ path.id }}">
+            <h3>{{ path.name }}</h3>
+            {% if path.applicability %}
+            <p class="applicability"><em>{{ path.applicability }}</em></p>
+            {% endif %}
+
+            {% if path.gates %}
+            <h4>Gates</h4>
+            <ul class="gates-list">
+                {% for gate in path.gates %}
+                <li class="gate gate-{{ gate.state }}">
+                    <strong>{{ gate.kind | replace('_', ' ') | title }}:</strong> {{ gate.state | replace('_', ' ') | title }}
+                    {% if gate.claim_ids %}<span class="claim-refs">[{{ gate.claim_ids | join(', ') }}]</span>{% endif %}
+                    {% if gate.note %}<br><small>{{ gate.note }}</small>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if path.prerequisites %}
+            <h4>Prerequisites</h4>
+            <ul>
+                {% for p in path.prerequisites %}
+                <li>
+                    {{ p.text }} <span class="owner">({{ guide_html.format_owner(p.owner) }})</span>
+                    {% if p.claim_ids %}<span class="claim-refs">[{{ p.claim_ids | join(', ') }}]</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if path.limits %}
+            <h4>Limits</h4>
+            <ul>
+                {% for lim in path.limits %}
+                <li>
+                    {{ lim.text }}
+                    {% if lim.claim_ids %}<span class="claim-refs">[{{ lim.claim_ids | join(', ') }}]</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if path.steps %}
+            <h4>Steps</h4>
+            <ol class="steps-list">
+                {% for step in path.steps %}
+                <li>
+                    <strong>{{ step.title }}</strong>
+                    <span class="owner">[{{ guide_html.format_owner(step.owner) }}]</span>
+                    {% if step.claim_ids %}<span class="claim-refs">[{{ step.claim_ids | join(', ') }}]</span>{% endif %}
+                    <p>{{ step.instructions }}</p>
+                    {% if step.success_condition %}
+                    <p class="success-condition"><em>Done when: {{ step.success_condition }}</em></p>
+                    {% endif %}
+                    {% if step.effort and guide_html.format_estimate(step.effort) != 'unknown' %}
+                    <p class="step-effort"><small>Effort: {{ guide_html.format_estimate(step.effort) }}</small></p>
+                    {% endif %}
+                    {% if step.action_url %}
+                    <p><a href="{{ step.action_url }}" target="_blank" rel="noopener">{{ step.action_url }}</a></p>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+            {% endif %}
+
+            {% if path.costs %}
+            <h4>Costs</h4>
+            <ul>
+                {% for cost in path.costs %}
+                <li>
+                    {{ cost.description }}: {{ cost.amount or 'unknown' }} ({{ cost.basis }})
+                    {% if cost.claim_ids %}<span class="claim-refs">[{{ cost.claim_ids | join(', ') }}]</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    {# Scopes #}
+    {% if guide.guide.scopes %}
+    <section class="section">
+        <h2>Scopes</h2>
+        <table>
+            <thead><tr><th>Scope</th><th>Purpose</th><th>Classification</th><th>Claims</th></tr></thead>
+            <tbody>
+                {% for scope in guide.guide.scopes %}
+                <tr>
+                    <td><code>{{ scope.scope_string }}</code></td>
+                    <td>{{ scope.purpose }}</td>
+                    <td>{{ scope.classification }}</td>
+                    <td>{{ scope.claim_ids | join(', ') if scope.claim_ids else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    {# Blockers #}
+    <section class="section">
+        <h2>Launch blockers</h2>
+        {% if guide.guide.blockers %}
+        <ul>
+            {% for b in guide.guide.blockers %}
+            <li>
+                <strong>{{ b.trigger }}</strong>: {{ b.consequence }}
+                {% if b.claim_ids %}<span class="claim-refs">[{{ b.claim_ids | join(', ') }}]</span>{% endif %}
+                <br>Resolution: {{ b.resolution }} (Owner: {{ guide_html.format_owner(b.owner) }})
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>None recorded.</p>
+        {% endif %}
+    </section>
+
+    {# Setup attempts #}
+    {% if guide.attempts %}
+    <section class="section">
+        <h2>Setup attempts</h2>
+        <table class="attempts-table">
+            <thead><tr><th>ID</th><th>Action</th><th>Environment</th><th>Status</th><th>Observed result</th><th>Limitation</th></tr></thead>
+            <tbody>
+                {% for a in guide.attempts %}
+                <tr>
+                    <td>{{ a.id }}</td>
+                    <td>{{ a.action }}</td>
+                    <td>{{ a.environment }}</td>
+                    <td><span class="status-{{ a.status }}">{{ a.status }}</span></td>
+                    <td>{{ a.observed_result }}</td>
+                    <td>{{ a.limitation }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    {# Agent assistance #}
+    <section class="section">
+        <h2>What an agent can help with</h2>
+        {% if guide.guide.agent_assistance %}
+        <ul>
+            {% for aa in guide.guide.agent_assistance %}
+            <li><strong>{{ aa.capability }}</strong>: {{ aa.description }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>None recorded.</p>
+        {% endif %}
+    </section>
+
+    {# Unknowns #}
+    <section class="section">
+        <h2>Unknowns</h2>
+        {% if guide.guide.unknowns %}
+        <ul>
+            {% for u in guide.guide.unknowns %}
+            <li>
+                <strong>{{ u.question }}</strong>
+                {% if u.why_it_matters %}<br>Why it matters: {{ u.why_it_matters }}{% endif %}
+                {% if u.how_to_find_out %}<br>How to find out: {{ u.how_to_find_out }}{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>None recorded.</p>
+        {% endif %}
+    </section>
+
+    {# Conflicts #}
+    <section class="section">
+        <h2>Conflicts</h2>
+        {% if guide.guide.conflicts %}
+        <ul>
+            {% for c in guide.guide.conflicts %}
+            <li>
+                <strong>{{ c.topic }}</strong>: {{ c.description }}
+                {% if c.resolution %}<br>Resolution: {{ c.resolution }}{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>None recorded.</p>
+        {% endif %}
+    </section>
+
+    {# Evidence details (collapsible) #}
+    <details class="section evidence-details">
+        <summary><h2>Evidence details</h2></summary>
+
+        {% if guide.guide.claims %}
+        <h3>Claims</h3>
+        <table class="claims-table">
+            <thead>
+                <tr><th>ID</th><th>Claim</th><th>Conditions</th><th>Basis</th><th>Sources</th><th>Excerpt</th><th>Excerpt status</th><th>Review</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+                {% for claim in guide.guide.claims %}
+                <tr>
+                    <td>{{ claim.id }}</td>
+                    <td>{{ claim.text }}</td>
+                    <td>{{ claim.conditions or '—' }}</td>
+                    <td><span class="basis-{{ claim.basis }}">{{ claim.basis }}</span></td>
+                    <td>{{ claim.source_ids | join(', ') if claim.source_ids else '—' }}</td>
+                    <td>
+                        {% if claim.excerpt %}
+                            {% if claim.excerpt | length > 60 %}
+                                <details>
+                                    <summary>{{ claim.excerpt[:60] }}…</summary>
+                                    <p class="full-excerpt"><small>{{ claim.excerpt }}</small></p>
+                                </details>
+                            {% else %}
+                                {{ claim.excerpt }}
+                            {% endif %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>{{ claim.excerpt_status }}</td>
+                    <td><span class="review-{{ claim.review_result }}">{{ claim.review_result | replace('_', ' ') }}</span></td>
+                    <td>{{ claim.support_note or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if guide.sources %}
+        <h3>Sources</h3>
+        <table class="sources-table">
+            <thead>
+                <tr><th>ID</th><th>Title</th><th>URL</th><th>Status</th><th>Retrieved at</th><th>Provider</th></tr>
+            </thead>
+            <tbody>
+                {% for s in guide.sources %}
+                <tr>
+                    <td>{{ s.id }}</td>
+                    <td>{{ s.title or '—' }}</td>
+                    <td>{% if s.url.startswith('https://') %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url[:60] }}</a>{% elif s.url %}{{ s.url[:60] }}{% else %}—{% endif %}</td>
+                    <td>{{ s.retrieval_status }}</td>
+                    <td>{{ s.retrieval_time[:10] if s.retrieval_time else '—' }}</td>
+                    <td>{{ s.provider_domain_status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if guide.uncited_sources %}
+        <h3>Uncited sources</h3>
+        <ul>
+            {% for s in guide.uncited_sources %}
+            <li>{{ s.id }}: {{ s.title or s.url }} ({{ s.retrieval_status }})</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if guide.warnings %}
+        <h3>Validation warnings</h3>
+        <ul class="warnings">
+            {% for w in guide.warnings %}
+            <li>{{ w }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <h3>Run statistics</h3>
+        <ul>
+            <li>Model: {{ guide.run.model or 'not recorded' }}</li>
+            <li>Model calls: {{ guide.run.model_calls }}</li>
+            <li>Searches: {{ guide.run.searches }}</li>
+            <li>Page reads: {{ guide.run.page_reads }}</li>
+            <li>Duration: {{ guide.run.duration_seconds }}s</li>
+            <li>Cost: {{ guide.run.cost }}</li>
+            {% if guide.run.research_timed_out %}<li>⚠ Research timed out</li>{% endif %}
+        </ul>
+    </details>
+
+    {# Share footer #}
+    <footer class="share-footer">
+        <div class="share-actions">
+            <button onclick="navigator.clipboard.writeText('{{ base_url }}/guides/{{ guide.id }}/versions/{{ guide.version }}').then(()=>this.textContent='Copied!')" class="btn">Copy link</button>
+            <a href="/guides/{{ guide.id }}/versions/{{ guide.version }}.md" class="btn">Download Markdown</a>
+            <a href="/api/guides/{{ guide.id }}/versions/{{ guide.version }}" class="btn">JSON</a>
+        </div>
+        <div class="version-list">
+            <strong>Versions:</strong>
+            {% for v in versions %}
+            <a href="/guides/{{ guide.id }}/versions/{{ v.version }}" class="{% if v.version == guide.version %}active{% endif %}">
+                v{{ v.version }} ({{ v.status }})
+            </a>
+            {% endfor %}
+        </div>
+    </footer>
+</article>
+{% endblock %}
