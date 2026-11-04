@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import uuid
 import time
 import traceback
@@ -258,10 +259,14 @@ async def _run_job(job_id: str, app_name: str, feature: str,
             error_id = str(uuid.uuid4())[:8]
             # Log the full traceback server-side
             print(f"Job {job_id} exception [{error_id}]: {traceback.format_exc()}")
+            msg = f"An error occurred (Error ID: {error_id})"
+            from app.llm_gemini import RateLimitExceeded
+            if isinstance(e, RateLimitExceeded) or "Free-tier model limit reached" in str(e):
+                msg = "Free-tier model limit reached. Try again in a minute."
             store.update_job(
                 job_id,
                 status=JobStatus.failed.value,
-                error_message=f"An error occurred (Error ID: {error_id})",
+                error_message=msg,
                 error_id=error_id,
             )
         finally:
@@ -355,9 +360,11 @@ async def guide_latest(request: Request, guide_id: str):
 @app.get("/health")
 async def health():
     """Health check."""
+    from app.config import LLM_PROVIDER
     return {
         "status": "ok",
         "live_generation": live_generation_configured(),
+        "provider": os.getenv("LLM_PROVIDER", LLM_PROVIDER),
         "composio_lookup": composio_lookup_configured(),
     }
 

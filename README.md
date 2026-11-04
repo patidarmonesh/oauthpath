@@ -6,14 +6,15 @@ them, with visible evidence.
 
 **Live:** *(deploy URL — see [Deployment](#deployment) section)* · **Source:** this repository
 
+Runs entirely on free tiers: Google AI Studio Gemini (free tier), Tavily (free tier), Composio (Hobby plan), and Render (free tier). Also supports Anthropic Claude Sonnet via `LLM_PROVIDER=anthropic`.
+
 ## Try it
-- Generate fresh draft guides live for any app or scenario (e.g. GitHub, Slack, Google)
+- Generate fresh draft guides live for any app or scenario (e.g. GitHub, Slack, Gmail)
 - Browse reviewed guides from the library (promoted via `scripts/promote.py` after human audit)
 - Inspect visible evidence, claim citations, gate assessments, and export full Markdown guides
 
 ## Run locally
-Requires Python 3.10+ and an Anthropic API key with web search/fetch access.
-A Composio API key is optional (toolkit metadata only).
+Requires Python 3.10+. For live generation, obtain free API keys from Google AI Studio (`GEMINI_API_KEY`) and Tavily (`TAVILY_API_KEY`). A Composio API key is optional (`COMPOSIO_API_KEY` for toolkit metadata). Alternatively, set `LLM_PROVIDER=anthropic` with `ANTHROPIC_API_KEY`.
 
 **Windows (PowerShell):**
 ```powershell
@@ -82,7 +83,7 @@ Input → Resolver → Composio Lookup → Research Agent → Synthesis → Vali
 
 ## Test Suite & Automated Coverage
 
-The project includes an automated test suite of **221 unit, integration, and regression tests** across 8 test modules, run via `pytest`:
+The project includes an automated test suite of **231 unit, integration, and regression tests** across 9 test modules, run via `pytest`:
 - **Smoke Tests (`tests/smoke_test.py` - 10 tests)**: Route precedence, review fields immutability, gate evidence enforcement, Composio claims preservation, difficulty on explicit unknown gates, schema enums, domain-website mismatch protection, input validation, and ambiguous candidate prefill.
 - **Core Specification Tests (`tests/test_oauthpath.py` - 22 tests)**: Estimate normalization, zero-estimate preservation, URL validation, claims & evidence rules, Composio toolkit matching, deterministic difficulty calculation, excerpt verification, SQLite version immutability, markdown table escaping, and web routes.
 - **Pipeline E2E & Edge-Case Tests (`tests/test_pipeline_e2e.py` - 22 tests)**: Multi-turn research tool calling (`web_search` and `web_fetch`), real SDK 2.4.0 `Message.model_validate` shapes, synthesis `max_tokens` truncation retry, dual rendering parity between `render_markdown` and `guide.html`, and base guide validation.
@@ -91,13 +92,15 @@ The project includes an automated test suite of **221 unit, integration, and reg
 - **Code Review Regressions (`tests/test_code_review_regressions.py` - 26 tests)**: Regressions for R1–R10, Findings 1–8, Follow-Up Items 1–4, and research deadline/timeout partial saving: secret sanitization, non-mutating reviewed record ingestion, word-boundary toolkit matching without false domain sharing, shared-domain candidate disambiguation, unsupported step qualification, stale hidden website state reset, artifact text link preservation, research wrap-up deadline buffers, next action schema string type preservation, sibling product conflict prevention on all domains, genuine blocker observation support, research phase cancellation cleanup, user website conflict preservation without candidate loops, uppercase auth schemes, and research timeout partial guide persistence.
 - **Pipeline Repeatability & Scenarios (`tests/test_pipeline_repeatability_and_scenarios.py` - 18 tests)**: Full input-to-HTML/export pipeline execution (`/api/jobs` -> polling -> disk reload -> HTML -> Markdown export), pipeline repetition (3 passes: fresh db, repeated cache hit, force refresh v2), unfamiliar app corroboration with NewCloud fixtures and absence of cross-product text, Composio custom/managed/unsupported modes, missing keys, delayed call timeouts, cancellation failure modes, ambiguous name candidate reload, idempotent seed imports across 3 server restarts, and concurrency guard.
 - **Full Review Finding Regressions (`tests/test_full_review_findings.py` - 16 tests)**: Dedicated boundary regressions for Findings 1–9 from `docs/FULL_CODE_REVIEW.md`: CLI timeout & error exit codes, reviewed import rejection of unsourced claims and synthetic attempts, two-path Composio promotion with unique step IDs, gate reversal claim text updates with history preservation, base version identity and scenario mismatch rejections, canonical attempt loading with qualified product names, preparation step idempotence and URL preservation, retry link preservation of user-typed website and scenario parameters, rendered attempt references across Markdown and HTML, and conflicting model guess rejection preserving user domain and coherent name.
+- **Gemini Free-Tier Path (`tests/test_gemini_path.py` - 10 tests)**: Research multi-turn loop with Tavily search and markdown extraction, failed read handling, budget exhaustion, unseen URL refusal, synthesis `max_tokens` truncation retry, schema rejection fallback with repair, 429 rate limit backoff retry and safe error sanitization, structured model resolver, and `/health` provider reporting.
 
-All 221 tests pass cleanly:
+All 231 tests pass cleanly:
 ```
-======================= 221 passed, 1 warning in 32.90s =======================
+======================= 231 passed, 1 warning in 29.72s =======================
 ```
 
 - **Browser DOM Check (`scripts/verify_browser.py`)**: Local verification script that launches headless Chrome to inspect server-rendered DOM elements and form attributes (note: targets a hardcoded Windows Chrome path `C:\Program Files\Google\Chrome\Application\chrome.exe`).
+- **Free-Tier Smoke Check (`scripts/smoke_free_tier.py`)**: Local verification script testing live `generate()`, `search()`, `extract()`, and JSON schema synthesis once keys are placed in `.env`.
 
 ## Validation & Verification
 See `docs/VERIFICATION.md` for the 5-part verification report covering the setup attempt workflow, the 15-claim audit, live-run logging, documented vs observed evidence boundaries, and remaining live operational prerequisites. See `docs/DECISIONS.md` for architectural decision records.
@@ -106,20 +109,21 @@ See `docs/VERIFICATION.md` for the 5-part verification report covering the setup
 
 OAuthPath is an ASGI FastAPI application with SQLite persistence and background task handling.
 
-1. **Environment Setup:** Set `ANTHROPIC_API_KEY` and optionally `COMPOSIO_API_KEY`.
-2. **Persistent Storage:** Ensure the `data/` directory (specifically `data/oauthpath.db`) is mounted on persistent storage. SQLite WAL mode handles concurrent read queries efficiently.
-3. **Ingress & Reverse Proxy:** Run behind a TLS reverse proxy (e.g. Caddy, Nginx, or Cloudflare). Configure `FORWARDED_ALLOW_IPS` to match your ingress proxy IP (defaults to `127.0.0.1` to prevent client IP spoofing).
+1. **Environment Setup:** Set `LLM_PROVIDER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `TAVILY_API_KEY`, and `COMPOSIO_API_KEY` in your PaaS environment settings (e.g. Render).
+2. **Persistent Storage / Re-import:** On free hosting platforms where disk storage is ephemeral (e.g. Render free tier), machine-generated draft guides reset on service restart, but reviewed library guides in `data/reviewed/` automatically re-import idempotently on startup.
+3. **Ingress & Reverse Proxy:** Configure `FORWARDED_ALLOW_IPS=*` on Render/Railway.
 4. **Execution:**
    ```bash
    python serve.py
    ```
 
 ## Limitations
-- Live guide generation requires an Anthropic API key with web search/fetch tool access (`claude-sonnet-5-5`).
-- The library works without live generation (browse human-reviewed guides).
-- Provider requirements change; guides show their research date.
-- JavaScript-heavy documentation portals may yield fewer readable text blocks.
-- Single-worker deployment; SQLite on persistent storage required.
+- **Cold start:** On free PaaS hosting (Render free tier), the instance spins down after 15 minutes of inactivity; the initial request may take ~1 minute to wake.
+- **Ephemeral disk:** On free hosting, dynamically generated draft guides reset on container restart. The curated, human-reviewed library (`data/reviewed/`) is bundled in git and re-imported automatically on every launch.
+- **Free-tier rate limits:** Gemini free tier has tight per-minute request quotas; `MAX_CONCURRENT_JOBS` is defaulted to 1, and 429 responses trigger an automatic backoff retry before presenting a clean retry message.
+- **Curated breadth:** Currently provides 3 complete, audited reference guides (GitHub, Slack, Gmail), rather than 100 unverified stubs.
+- **No completed third-party approvals:** Provider developer console approvals, restricted scope grants, and refresh token expiry are documented from official provider policies rather than simulated or fabricated.
+- **Privacy notice for free tiers:** Google AI Studio terms allow data sent over free-tier APIs to be used for model improvement. In OAuthPath, only public developer documentation, public scope strings, and public provider URLs are retrieved and processed — no private customer credentials or confidential data are ever submitted.
 
 ## Expanding to 100 apps
 Same schema and pipeline. Prioritize by developer demand (Composio usage),
@@ -128,8 +132,10 @@ top apps by hand; re-check on a schedule and when provider changelogs move;
 label freshness on every guide. A catalog entry is not a guide.
 
 ## Stack
-Python 3.10, FastAPI, Jinja2 templates, plain CSS/JS, SQLite, Pydantic v2,
-Anthropic Python SDK (claude-sonnet-5-5), httpx, markdown-it-py,
-thefuzz, tldextract, python-dotenv.
+Python 3.10+, FastAPI, Jinja2 templates, plain CSS/JS, SQLite, Pydantic v2,
+Google GenAI SDK (`google-genai==2.33.0`, Gemini 3.6 Flash / 3.5 Flash Lite),
+Tavily Search & Extraction (`tavily-python==0.8.5`),
+Anthropic Python SDK (`anthropic==2.4.0`, Claude Sonnet 5.5 optional fallback),
+httpx, markdown-it-py, thefuzz, tldextract, python-dotenv.
 
 All dependency versions pinned in `requirements.txt` and verified with automated test suite.

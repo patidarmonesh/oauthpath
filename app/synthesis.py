@@ -8,10 +8,15 @@ import inspect
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.config import ANTHROPIC_API_KEY, RESEARCH_MODEL, COMPOSIO_CALLBACK_URL
+import os
+from app.config import (
+    LLM_PROVIDER, GEMINI_API_KEY, GEMINI_MODEL,
+    ANTHROPIC_API_KEY, RESEARCH_MODEL, COMPOSIO_CALLBACK_URL,
+)
 from app.schema import (
     DraftGuideContent, Source, Attempt, ComposioInfo, ProviderInfo, Scenario,
 )
+from app.llm_gemini import generate
 
 SYNTHESIS_SYSTEM_PROMPT = """Turn research findings into a structured launch guide. Return JSON matching
 the schema.
@@ -359,7 +364,7 @@ def build_synthesis_user_message(
     return "\n".join(parts)
 
 
-async def run_synthesis(
+async def run_synthesis_anthropic(
     provider: ProviderInfo,
     scenario: Scenario,
     composio: ComposioInfo,
@@ -475,3 +480,147 @@ async def run_synthesis(
             res = close_func()
             if inspect.isawaitable(res):
                 await res
+
+
+async def run_synthesis_gemini(
+    provider: ProviderInfo,
+    scenario: Scenario,
+    composio: ComposioInfo,
+    sources: list[Source],
+    attempts: list[Attempt],
+    findings: str,
+    deadline: float,
+    research_timed_out: bool = False,
+) -> tuple[Optional[DraftGuideContent], dict]:
+    """Run synthesis using google-genai structured JSON generation."""
+    from app.config import GEMINI_API_KEY, GEMINI_MODEL
+    if not os.getenv("GEMINI_API_KEY", GEMINI_API_KEY):
+        return None, {"error": "Gemini API key not configured"}
+
+    from google.genai import types
+
+    system_prompt = SYNTHESIS_SYSTEM_PROMPT.replace("COMPOSIO_CALLBACK", COMPOSIO_CALLBACK_URL)
+    user_message = build_synthesis_user_message(
+        provider, scenario, composio, sources, attempts, findings, research_timed_out
+    )
+
+    total_input_tokens = 0
+    total_output_tokens = 0
+    model_calls = 0
+
+    schema_fallback = False
+
+    for attempt_num in range(2):
+        remaining = deadline - time.time()
+        if remaining < 15:
+            return None, {
+                "error": "Insufficient time for synthesis",
+                "model_calls": model_calls,
+                "tokens_input": total_input_tokens,
+                "tokens_output": total_output_tokens,
+            }
+
+        req_timeout = max(5.0, remaining)
+        active_schema = None if schema_fallback else GUIDE_SCHEMA
+
+        try:
+            resp, usage = await generate(
+                contents=[user_message],
+                system=system_prompt,
+                json_schema=active_schema,
+                max_output_tokens=16384,
+                timeout_s=req_timeout,
+            )
+            model_calls += 1
+            total_input_tokens += usage.get("prompt_token_count", 0)
+            total_output_tokens += usage.get("candidates_token_count", 0)
+
+            cand = resp.candidates[0] if resp.candidates else None
+            finish_reason = getattr(cand, "finish_reason", None)
+            is_max_tokens = (
+                finish_reason == types.FinishReason.MAX_TOKENS
+                or str(finish_reason) == "MAX_TOKENS"
+            )
+
+            if is_max_tokens:
+                if attempt_num == 0:
+                    user_message += (
+                        "\n\nOutput was truncated by max_tokens. "
+                        "Please provide a more concise answer with shorter instructions "
+                        "and only consequential claims."
+                    )
+                    continue
+                else:
+                    return None, {
+                        "error": "Synthesis output truncated by max_tokens",
+                        "model_calls": model_calls,
+                        "tokens_input": total_input_tokens,
+                        "tokens_output": total_output_tokens,
+                    }
+
+            raw_text = (resp.text or "").strip()
+            if raw_text.startswith("```"):
+                parts = raw_text.split("```")
+                if len(parts) >= 2:
+                    raw_text = parts[1]
+                    if raw_text.startswith("json"):
+                        raw_text = raw_text[4:]
+            raw_text = raw_text.strip()
+            guide_data = json.loads(raw_text)
+            guide_content = DraftGuideContent.model_validate(guide_data)
+            return guide_content, {
+                "model_calls": model_calls,
+                "tokens_input": total_input_tokens,
+                "tokens_output": total_output_tokens,
+            }
+
+        except Exception as exc:
+            err_str = str(exc)
+            if "400" in err_str or "INVALID_ARGUMENT" in err_str or "schema" in err_str.lower():
+                schema_fallback = True
+                user_message += (
+                    "\n\nReturn only valid JSON matching this schema: "
+                    + json.dumps(GUIDE_SCHEMA)
+                )
+
+            if attempt_num == 0:
+                user_message += f"\n\nPrevious attempt failed: {err_str[:200]}. Please return valid JSON matching the schema."
+                continue
+            else:
+                return None, {
+                    "error": f"Synthesis failed after repair: {exc}",
+                    "model_calls": model_calls,
+                    "tokens_input": total_input_tokens,
+                    "tokens_output": total_output_tokens,
+                }
+
+    return None, {
+        "error": "Synthesis exhausted attempts",
+        "model_calls": model_calls,
+        "tokens_input": total_input_tokens,
+        "tokens_output": total_output_tokens,
+    }
+
+
+async def run_synthesis(
+    provider: ProviderInfo,
+    scenario: Scenario,
+    composio: ComposioInfo,
+    sources: list[Source],
+    attempts: list[Attempt],
+    findings: str,
+    deadline: float,
+    research_timed_out: bool = False,
+) -> tuple[Optional[DraftGuideContent], dict]:
+    """Run synthesis dispatching on LLM_PROVIDER."""
+    import sys
+    from app.config import get_active_provider
+    llm = get_active_provider(sys.modules[__name__])
+    if llm == "gemini":
+        return await run_synthesis_gemini(
+            provider, scenario, composio, sources, attempts, findings, deadline, research_timed_out
+        )
+    return await run_synthesis_anthropic(
+        provider, scenario, composio, sources, attempts, findings, deadline, research_timed_out
+    )
+

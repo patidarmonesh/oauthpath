@@ -13,6 +13,7 @@ from typing import Optional, Callable
 from app.config import (
     JOB_TIMEOUT_SECONDS, CACHE_MAX_AGE_HOURS,
     SCHEMA_VERSION, PROMPT_VERSION,
+    get_active_model_name,
 )
 from app.schema import (
     GuideRecord, Scenario, ProviderInfo, ComposioInfo,
@@ -279,7 +280,7 @@ async def run_pipeline(
             tokens_output=total_output,
             cost="unavailable",
             cost_basis="Price not configured for cost calculation",
-            model=research_stats.get("model", ""),
+            model=research_stats.get("model") or get_active_model_name(),
             duration_seconds=round(end_time - start_time, 1),
             research_timed_out=research_stats.get("research_timed_out", False),
         ),

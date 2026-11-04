@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import inspect
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ import tldextract
 
 from app.config import COMPOSIO_API_KEY, COMPOSIO_API_HOST
 from app.schema import ComposioInfo, ProviderInfo, ManagedOAuth, ComposioLookupStatus, Source
+from app.llm_gemini import generate
 
 SHARED_COMPANY_DOMAINS: set[str] = {
     "google.com",
@@ -207,7 +209,78 @@ async def resolve_provider_with_model(
     if website.strip():
         user_domain, _ = parse_domain(website.strip())
 
-    from app.config import ANTHROPIC_API_KEY, RESEARCH_MODEL
+    import sys
+    from app.config import ANTHROPIC_API_KEY, RESEARCH_MODEL, LLM_PROVIDER, get_active_provider
+    llm = get_active_provider(sys.modules[__name__])
+
+    if llm == "gemini":
+        from app.config import GEMINI_API_KEY
+        if os.getenv("GEMINI_API_KEY", GEMINI_API_KEY) and app_name.strip():
+            try:
+                resolver_schema = {
+                    "type": "object",
+                    "properties": {
+                        "canonical_name": {"type": "string"},
+                        "official_domain": {"type": "string"},
+                        "is_ambiguous": {"type": "boolean"},
+                        "candidates": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "domain": {"type": "string"},
+                                },
+                                "required": ["name", "domain"],
+                            },
+                        },
+                    },
+                    "required": ["canonical_name", "official_domain", "is_ambiguous"],
+                }
+                system_prompt = (
+                    "You identify the official registrable domain and canonical name for software products. "
+                    "Return ONLY valid JSON matching the schema."
+                )
+                resp, usage = await generate(
+                    contents=[f"App name: {app_name}, Website: {website}"],
+                    system=system_prompt,
+                    json_schema=resolver_schema,
+                    timeout_s=15.0,
+                    max_output_tokens=256,
+                )
+                stats["model_calls"] = 1
+                stats["tokens_input"] = usage.get("prompt_token_count", 0)
+                stats["tokens_output"] = usage.get("candidates_token_count", 0)
+
+                raw = (resp.text or "").strip()
+                if raw.startswith("```"):
+                    parts = raw.split("```")
+                    if len(parts) >= 2:
+                        raw = parts[1]
+                        if raw.startswith("json"):
+                            raw = raw[4:]
+                data = json.loads(raw.strip())
+
+                if data.get("is_ambiguous") and data.get("candidates") and not user_domain:
+                    return ProviderInfo(name=app_name, official_domain="", identity_status="assumed"), data["candidates"], stats
+
+                c_name = data.get("canonical_name") or app_name
+                c_domain = data.get("official_domain") or ""
+                reg = ""
+                if c_domain:
+                    reg, _ = parse_domain(c_domain)
+
+                if user_domain:
+                    resolved_name = c_name
+                    if reg and reg.lower() != user_domain.lower():
+                        stats["warning"] = f"Using user-specified domain '{user_domain}'; model suggested alternative '{c_name}' on '{reg}'"
+                        resolved_name = app_name
+                    return ProviderInfo(name=resolved_name, official_domain=user_domain, identity_status="assumed"), None, stats
+
+                return ProviderInfo(name=c_name, official_domain=reg or "", identity_status="assumed"), None, stats
+            except Exception:
+                pass
+
     if ANTHROPIC_API_KEY and app_name.strip():
         client = None
         try:

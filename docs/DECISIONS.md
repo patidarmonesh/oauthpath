@@ -27,3 +27,12 @@ After validating usefulness and claim quality with these three guides:
 2. **Freshness**: re-check on a cadence tied to change risk; watch provider changelogs to flag affected guides. Diff runs to catch silent changes.
 3. **Integration**: a readiness card inside Composio's auth-config flow; a tool coding agents can call; internal prioritization of which toolkits most need a managed app.
 4. **Measurement**: time from creating a custom auth config to the first ACTIVE connected account; share of custom configs reaching users outside the developer's org.
+
+## 5. Free-tier infrastructure stack
+
+To ensure any evaluator, developer, or teammate can run, test, and verify OAuthPath completely without requiring paid API credits or credit card registrations, OAuthPath operates natively on free tiers:
+- **Google AI Studio (Gemini 3.6 Flash / 3.5 Flash Lite)**: Zero-cost LLM tier providing structured JSON schema synthesis, multi-turn tool calling, and fast identity resolution.
+- **Tavily (1,000 free monthly credits)**: Dedicated search and markdown extraction API, providing fresh web results and page content while offloading web crawling so OAuthPath maintains zero SSRF exposure.
+- **Composio Hobby ($0)**: Live toolkit metadata discovery and local test connection verification.
+- **Render Free Tier**: Zero-cost web hosting with persistent git-backed seed import on service launch.
+- **Dual-Stack Preservation**: The Anthropic path (`LLM_PROVIDER=anthropic`) is preserved intact behind the same two-layer schema, code-owned evidence registry, and deadline invariants.
