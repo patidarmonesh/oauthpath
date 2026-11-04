@@ -174,7 +174,7 @@ class Store:
             conn.close()
 
     def get_latest_reviewed(self, guide_id: str) -> Optional[GuideRecord]:
-        """Get the latest reviewed version."""
+        """Get the latest reviewed version (excludes retracted)."""
         conn = self._get_conn()
         try:
             row = conn.execute(
@@ -189,10 +189,12 @@ class Store:
             conn.close()
 
     def check_cache(self, cache_key: str, max_age_hours: int) -> Optional[GuideRecord]:
-        """Look for a cache hit. Reviewed guides never expire; drafts obey max_age_hours."""
+        """Look for a cache hit. Reviewed guides never expire; drafts obey max_age_hours.
+        Retracted guides are never returned as cache hits."""
         conn = self._get_conn()
         try:
             # Try reviewed first (no age limit - human-reviewed guides remain permanent cache hits)
+            # Exclude retracted versions
             row = conn.execute(
                 "SELECT data FROM guides WHERE cache_key = ? "
                 "AND status = ? ORDER BY version DESC LIMIT 1",
@@ -201,13 +203,13 @@ class Store:
             if row:
                 return self._parse_guide_data(row["data"])
 
-            # Try non-partial draft within max_age_hours
+            # Try non-partial, non-retracted draft within max_age_hours
             cutoff = datetime.now(timezone.utc).timestamp() - (max_age_hours * 3600)
             cutoff_iso = datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
             row = conn.execute(
                 "SELECT data FROM guides WHERE cache_key = ? AND created_at > ? "
-                "AND status != ? ORDER BY version DESC LIMIT 1",
-                (cache_key, cutoff_iso, GuideStatus.partial.value)
+                "AND status != ? AND status != ? ORDER BY version DESC LIMIT 1",
+                (cache_key, cutoff_iso, GuideStatus.partial.value, GuideStatus.retracted.value)
             ).fetchone()
             if row:
                 return self._parse_guide_data(row["data"])
@@ -217,14 +219,16 @@ class Store:
             conn.close()
 
     def list_guides(self) -> list[dict]:
-        """List all guides (latest version each)."""
+        """List all guides (latest non-retracted version each)."""
         conn = self._get_conn()
         try:
             rows = conn.execute("""
                 SELECT g.id, g.version, g.created_at, g.status, g.data
                 FROM guides g
                 INNER JOIN (
-                    SELECT id, MAX(version) as max_v FROM guides GROUP BY id
+                    SELECT id, MAX(version) as max_v FROM guides
+                    WHERE status != 'retracted'
+                    GROUP BY id
                 ) latest ON g.id = latest.id AND g.version = latest.max_v
                 ORDER BY g.created_at DESC
             """).fetchall()
@@ -304,6 +308,34 @@ class Store:
             return [dict(r) for r in rows]
         finally:
             conn.close()
+
+    def retract_guide_version(self, guide_id: str, version: int, reason: str) -> bool:
+        """Mark a guide version as retracted.
+
+        Preserves the row for audit history but removes it from active publication.
+        Retracted versions are excluded from check_cache, list_guides latest selection,
+        and get_latest_reviewed results.
+        """
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                row = conn.execute(
+                    "SELECT data FROM guides WHERE id = ? AND version = ?",
+                    (guide_id, version)
+                ).fetchone()
+                if not row:
+                    return False
+                data = json.loads(row["data"])
+                data["status"] = GuideStatus.retracted.value
+                data["retraction_reason"] = reason
+                conn.execute(
+                    "UPDATE guides SET status = ?, data = ? WHERE id = ? AND version = ?",
+                    (GuideStatus.retracted.value, json.dumps(data), guide_id, version)
+                )
+                conn.commit()
+                return True
+            finally:
+                conn.close()
 
     # ── Job operations ────────────────────────────────────────────────────
 

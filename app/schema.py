@@ -76,6 +76,7 @@ class GuideStatus(str, Enum):
     draft = "draft"
     partial = "partial"
     reviewed = "reviewed"
+    retracted = "retracted"
 
 
 class JobStatus(str, Enum):

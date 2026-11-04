@@ -23,6 +23,24 @@ def get_tavily_client() -> AsyncTavilyClient:
     return _tavily_client
 
 
+def _safe_tavily_error(exc: Exception) -> str:
+    """Return a sanitized, categorical error string from a Tavily exception."""
+    from app.llm_gemini import _sanitize_error
+    msg = str(exc)
+    # Classify before sanitising so the caller gets a useful category
+    low = msg.lower()
+    if "401" in low or "403" in low or "unauthorized" in low or "invalid api key" in low:
+        return "Tavily authentication error"
+    if "429" in low or "rate limit" in low or "quota" in low:
+        return "Tavily rate limit reached"
+    if "timeout" in low or "timed out" in low:
+        return "Tavily request timed out"
+    if "503" in low or "unavailable" in low:
+        return "Tavily service temporarily unavailable"
+    # Generic — still sanitize to strip any credential that leaked into the message
+    return f"Tavily error: {_sanitize_error(msg)[:120]}"
+
+
 async def search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
     """Execute Tavily basic web search returning list of result dicts."""
     client = get_tavily_client()
@@ -34,7 +52,7 @@ async def search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
             include_published_date=True,
         )
     except Exception as exc:
-        raise RuntimeError(f"Tavily search failed: {exc}") from exc
+        raise RuntimeError(_safe_tavily_error(exc)) from None
 
     results = []
     for r in resp.get("results", []):
@@ -60,7 +78,7 @@ async def extract(urls: list[str]) -> tuple[dict[str, str], dict[str, str]]:
     Returns:
         (success_map, failure_map) where:
         success_map: {url: truncated_markdown_content}
-        failure_map: {url: error_message}
+        failure_map: {url: safe_error_message}
     """
     valid_urls = []
     failure_map: dict[str, str] = {}
@@ -89,8 +107,9 @@ async def extract(urls: list[str]) -> tuple[dict[str, str], dict[str, str]]:
             format="markdown",
         )
     except Exception as exc:
+        safe_err = _safe_tavily_error(exc)
         for u in valid_urls:
-            failure_map[u] = str(exc)
+            failure_map[u] = safe_err
         return {}, failure_map
 
     success_map: dict[str, str] = {}
@@ -103,10 +122,11 @@ async def extract(urls: list[str]) -> tuple[dict[str, str], dict[str, str]]:
             content = content[:max_chars]
         success_map[u] = content
 
-    # 2. Process failed results
+    # 2. Process failed results — sanitize provider error messages
     for item in resp.get("failed_results", []):
         u = item.get("url") or ""
-        err = item.get("error") or "Extraction failed"
-        failure_map[u] = str(err)
+        raw_err = item.get("error") or "Extraction failed"
+        from app.llm_gemini import _sanitize_error
+        failure_map[u] = _sanitize_error(str(raw_err))[:120]
 
     return success_map, failure_map

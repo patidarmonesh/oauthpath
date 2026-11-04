@@ -538,6 +538,7 @@ async def run_research_gemini(
     model_calls = 0
     timed_out = False
     run_stats_err = None
+    run_stats_err_category: str | None = None
 
     RESEARCH_WRAPUP_BUFFER = 15.0
     contents: list[Any] = [user_message]
@@ -580,7 +581,12 @@ async def run_research_gemini(
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                run_stats_err = str(e)
+                from app.llm_gemini import GeminiError, _sanitize_error
+                if isinstance(e, GeminiError):
+                    run_stats_err_category = e.category
+                    run_stats_err = str(e)
+                else:
+                    run_stats_err = _sanitize_error(str(e))[:200]
             break
 
         if on_event and turns == 0:
@@ -609,7 +615,14 @@ async def run_research_gemini(
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            run_stats_err = str(e)
+            # Preserve typed error category so pipeline can display actionable messages
+            from app.llm_gemini import GeminiError, _sanitize_error
+            if isinstance(e, GeminiError):
+                run_stats_err = str(e)
+                run_stats_err_category = getattr(e, "category", "unknown")
+            else:
+                run_stats_err = _sanitize_error(str(e))[:200]
+                run_stats_err_category = "unknown"
             break
 
         cand = resp.candidates[0] if resp.candidates else None
@@ -638,7 +651,8 @@ async def run_research_gemini(
                     except Exception as exc:
                         items = []
                         if on_event:
-                            on_event(f"Search warning: {exc}")
+                            from app.llm_gemini import _sanitize_error
+                            on_event(f"Search warning: {_sanitize_error(str(exc))[:100]}")
                     formatted_results = []
                     for it in items:
                         u = it["url"]
@@ -732,6 +746,8 @@ async def run_research_gemini(
     }
     if run_stats_err:
         run_stats["error"] = run_stats_err
+    if run_stats_err_category:
+        run_stats["error_category"] = run_stats_err_category
 
     return findings_text, sources, run_stats, page_texts
 

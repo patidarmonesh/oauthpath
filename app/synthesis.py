@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import inspect
@@ -575,6 +576,9 @@ async def run_synthesis_gemini(
             }
 
         except Exception as exc:
+            # Re-raise task cancellation immediately — do not treat as a JSON error
+            if isinstance(exc, asyncio.CancelledError):
+                raise
             err_str = str(exc)
             if "400" in err_str or "INVALID_ARGUMENT" in err_str or "schema" in err_str.lower():
                 schema_fallback = True
@@ -584,11 +588,13 @@ async def run_synthesis_gemini(
                 )
 
             if attempt_num == 0:
-                user_message += f"\n\nPrevious attempt failed: {err_str[:200]}. Please return valid JSON matching the schema."
+                from app.llm_gemini import _sanitize_error
+                safe_err = _sanitize_error(err_str)[:100]
+                user_message += f"\n\nPrevious attempt: {safe_err}. Please return valid JSON matching the schema."
                 continue
             else:
                 return None, {
-                    "error": f"Synthesis failed after repair: {exc}",
+                    "error": f"Synthesis failed after repair: {_sanitize_error(err_str)[:200]}",
                     "model_calls": model_calls,
                     "tokens_input": total_input_tokens,
                     "tokens_output": total_output_tokens,

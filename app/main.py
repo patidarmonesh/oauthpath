@@ -100,7 +100,11 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 def _import_reviewed_seeds():
-    """Import reviewed JSON seed files from data/reviewed/."""
+    """Import reviewed JSON seed files from data/reviewed/.
+
+    Files marked with "retracted": true are skipped — they are preserved on disk
+    for audit history but must not be loaded into active publication.
+    """
     reviewed_dir = BASE_DIR.parent / "data" / "reviewed"
     if not reviewed_dir.exists():
         return
@@ -109,6 +113,10 @@ def _import_reviewed_seeds():
             data = json.loads(f.read_text(encoding="utf-8"))
             if data.get("example") is True or data.get("status") == "example":
                 print(f"  Seed skipped: {f.name} is an example fixture")
+                continue
+            # Skip files explicitly marked as retracted (e.g. falsely attributed versions)
+            if data.get("retracted") is True:
+                print(f"  Seed skipped (retracted): {f.name}")
                 continue
             guide = GuideRecord.model_validate(data)
             ok, msg = store.import_reviewed_seed(guide)
@@ -257,12 +265,26 @@ async def _run_job(job_id: str, app_name: str, feature: str,
             )
         except Exception as e:
             error_id = str(uuid.uuid4())[:8]
-            # Log the full traceback server-side
+            # Log the full traceback server-side only — never expose raw exceptions to clients
             print(f"Job {job_id} exception [{error_id}]: {traceback.format_exc()}")
-            msg = f"An error occurred (Error ID: {error_id})"
-            from app.llm_gemini import RateLimitExceeded
-            if isinstance(e, RateLimitExceeded) or "Free-tier model limit reached" in str(e):
-                msg = "Free-tier model limit reached. Try again in a minute."
+            from app.llm_gemini import (
+                GeminiError, RateLimitExceeded, AuthError,
+                ProviderUnavailable, RequestTimeout, InvalidRequest,
+            )
+            if isinstance(e, RateLimitExceeded):
+                msg = "Free-tier request quota reached. Wait before retrying."
+            elif isinstance(e, AuthError):
+                msg = f"API key configuration error (Error ID: {error_id}). Check server configuration."
+            elif isinstance(e, ProviderUnavailable):
+                msg = f"AI provider temporarily unavailable (Error ID: {error_id}). Try again shortly."
+            elif isinstance(e, RequestTimeout):
+                msg = f"Request timed out (Error ID: {error_id}). Try again."
+            elif isinstance(e, InvalidRequest):
+                msg = f"Invalid model request (Error ID: {error_id}). Check configuration."
+            elif isinstance(e, GeminiError):
+                msg = f"Provider error (Error ID: {error_id})."
+            else:
+                msg = f"An error occurred (Error ID: {error_id})"
             store.update_job(
                 job_id,
                 status=JobStatus.failed.value,

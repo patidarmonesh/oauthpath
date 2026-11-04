@@ -30,8 +30,14 @@ def main():
     args = parser.parse_args()
 
     if not live_generation_configured():
-        print("ERROR: ANTHROPIC_API_KEY not set. Cannot generate guides.")
-        print("Copy .env.example to .env and fill in your API key.")
+        from app.config import get_active_provider
+        provider = get_active_provider()
+        if provider == "gemini":
+            print("ERROR: GEMINI_API_KEY and/or TAVILY_API_KEY not set. Cannot generate guides.")
+            print("Set GEMINI_API_KEY (Google AI Studio) and TAVILY_API_KEY in your .env file.")
+        else:
+            print("ERROR: ANTHROPIC_API_KEY not set. Cannot generate guides.")
+            print("Copy .env.example to .env and fill in your ANTHROPIC_API_KEY.")
         sys.exit(1)
 
     store = Store(DATABASE_PATH)
