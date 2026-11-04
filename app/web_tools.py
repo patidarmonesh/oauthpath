@@ -23,13 +23,13 @@ def get_tavily_client() -> AsyncTavilyClient:
     return _tavily_client
 
 
-async def search(query: str) -> list[dict[str, Any]]:
+async def search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
     """Execute Tavily basic web search returning list of result dicts."""
     client = get_tavily_client()
     try:
         resp = await client.search(
             query=query,
-            max_results=5,
+            max_results=max_results,
             search_depth="basic",
             include_published_date=True,
         )

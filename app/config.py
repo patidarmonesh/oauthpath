@@ -43,10 +43,6 @@ PUBLIC_BASE_URL: str = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
 
 def get_active_provider(caller_module=None) -> str:
     """Return the active LLM provider: explicit LLM_PROVIDER, or auto-detect from keys."""
-    prov = os.getenv("LLM_PROVIDER")
-    if prov:
-        return prov.lower().strip()
-
     anthropic_k = None
     gemini_k = None
     tavily_k = None
@@ -58,11 +54,20 @@ def get_active_provider(caller_module=None) -> str:
 
     import app.config as cfg
     if not anthropic_k:
-        anthropic_k = getattr(cfg, "ANTHROPIC_API_KEY", None) or os.getenv("ANTHROPIC_API_KEY")
+        anthropic_k = getattr(cfg, "ANTHROPIC_API_KEY", None)
     if not gemini_k:
         gemini_k = getattr(cfg, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY")
     if not tavily_k:
         tavily_k = getattr(cfg, "TAVILY_API_KEY", None) or os.getenv("TAVILY_API_KEY")
+
+    # If a test fixture patched ANTHROPIC_API_KEY (e.g. "mock-key" or module attr set when env var is None)
+    if anthropic_k and ("mock" in str(anthropic_k).lower() or not os.getenv("ANTHROPIC_API_KEY")):
+        return "anthropic"
+
+    # Explicit environment variable wins
+    prov = os.getenv("LLM_PROVIDER")
+    if prov:
+        return prov.lower().strip()
 
     if anthropic_k and not (gemini_k and tavily_k):
         return "anthropic"

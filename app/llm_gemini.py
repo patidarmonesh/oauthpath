@@ -34,19 +34,19 @@ def get_gemini_client() -> genai.Client:
 
 
 def _is_rate_limit(exc: Exception) -> bool:
-    """Detect HTTP 429 or resource exhausted errors."""
+    """Detect HTTP 429, 503 or resource exhausted / unavailable errors."""
     code = getattr(exc, "code", None)
-    if code == 429:
+    if code in (429, 503):
         return True
     status_code = getattr(exc, "status_code", None)
-    if status_code == 429:
+    if status_code in (429, 503):
         return True
     msg = str(exc).lower()
-    return "429" in msg or "resource_exhausted" in msg or "rate limit" in msg or "quota" in msg
+    return "429" in msg or "503" in msg or "unavailable" in msg or "resource_exhausted" in msg or "rate limit" in msg or "quota" in msg
 
 
 def _extract_retry_delay(exc: Exception) -> float:
-    """Extract suggested delay in seconds, defaulting to 20s."""
+    """Extract suggested delay in seconds, defaulting to 10s."""
     msg = str(exc)
     match = re.search(r'retry(?:ing)? after (\d+(?:\.\d+)?)s', msg, re.IGNORECASE)
     if match:
@@ -54,7 +54,7 @@ def _extract_retry_delay(exc: Exception) -> float:
             return min(float(match.group(1)), 30.0)
         except ValueError:
             pass
-    return 20.0
+    return 10.0
 
 
 async def generate(
@@ -74,7 +74,7 @@ async def generate(
         (response, usage) where usage has prompt_token_count and candidates_token_count.
     """
     client = get_gemini_client()
-    target_model = model or os.getenv("GEMINI_MODEL", GEMINI_MODEL)
+    target_model = (model or os.getenv("GEMINI_MODEL", GEMINI_MODEL)).strip()
 
     # Build config
     config_kwargs: dict[str, Any] = {
@@ -90,15 +90,15 @@ async def generate(
         else:
             config_kwargs["tools"] = [types.Tool(function_declarations=tools)]
 
-    if tool_mode:
-        mode_val = (
-            types.FunctionCallingConfigMode.NONE
-            if tool_mode.upper() == "NONE"
-            else types.FunctionCallingConfigMode.AUTO
-        )
-        config_kwargs["tool_config"] = types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(mode=mode_val)
-        )
+        if tool_mode:
+            mode_val = (
+                types.FunctionCallingConfigMode.NONE
+                if tool_mode.upper() == "NONE"
+                else types.FunctionCallingConfigMode.AUTO
+            )
+            config_kwargs["tool_config"] = types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode=mode_val)
+            )
 
     if json_schema:
         config_kwargs["response_mime_type"] = "application/json"

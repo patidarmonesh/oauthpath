@@ -34,12 +34,13 @@ async def main() -> int:
             contents=["Respond with the exact word: OK"],
             system="You are a system health check.",
             timeout_s=15.0,
-            max_output_tokens=32,
+            max_output_tokens=256,
         )
-        print(f"    - generate() status: success (text: '{resp.text.strip()}')")
+        text_out = (resp.text or "").strip()
+        print(f"    - generate() status: success (text: '{text_out}')")
         print(f"    - prompt_tokens: {usage.get('prompt_token_count')}, candidate_tokens: {usage.get('candidates_token_count')}")
     except Exception as exc:
-        print(f"    - generate() failed: {type(exc).__name__}")
+        print(f"    - generate() failed: {type(exc).__name__}: {exc}")
         return 1
 
     print("[*] Testing Tavily search...")
@@ -49,7 +50,7 @@ async def main() -> int:
         if results:
             print(f"    - first result title: '{results[0].get('title', '')[:50]}'")
     except Exception as exc:
-        print(f"    - search() failed: {type(exc).__name__}")
+        print(f"    - search() failed: {type(exc).__name__}: {exc}")
         return 1
 
     print("[*] Testing Tavily extract...")
@@ -78,12 +79,13 @@ async def main() -> int:
             system="Return JSON matching the schema.",
             json_schema=mini_schema,
             timeout_s=15.0,
-            max_output_tokens=64,
+            max_output_tokens=256,
         )
-        print(f"    - synthesis status: success (json: {resp.text.strip()})")
+        json_out = (resp.text or "").strip()
+        print(f"    - synthesis status: success (json: {json_out})")
         print(f"    - prompt_tokens: {usage.get('prompt_token_count')}, candidate_tokens: {usage.get('candidates_token_count')}")
     except Exception as exc:
-        print(f"    - synthesis failed: {type(exc).__name__}")
+        print(f"    - synthesis failed: {type(exc).__name__}: {exc}")
         return 1
 
     print("\n[SUCCESS] All free-tier live components verified successfully.")
