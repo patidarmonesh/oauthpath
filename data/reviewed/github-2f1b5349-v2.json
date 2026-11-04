@@ -1,0 +1,831 @@
+{
+  "schema_version": "2",
+  "prompt_version": "1",
+  "id": "github-2f1b5349",
+  "version": 2,
+  "created_at": "2026-11-04T14:53:47.094182+00:00",
+  "status": "reviewed",
+  "cache_key": "github|github.com|read and create issues for users' repositories|external customers|server-side|sv2|pv1",
+  "provider": {
+    "name": "GitHub",
+    "official_domain": "github.com",
+    "identity_status": "resolved"
+  },
+  "scenario": {
+    "feature": "Read and create issues for users' repositories",
+    "audience": "external customers",
+    "deployment": "server-side",
+    "assumptions": []
+  },
+  "composio": {
+    "toolkit_slug": "github",
+    "lookup_status": "failed",
+    "selected_auth_method": null,
+    "managed_oauth": "unknown",
+    "required_config_fields": [],
+    "required_connect_fields": [],
+    "auth_guide_url": null,
+    "checked_at": null,
+    "source_id": null
+  },
+  "guide": {
+    "oauth_support": "confirmed",
+    "summary": [
+      {
+        "text": "GitHub supports the use of third-party OAuth apps for integration.",
+        "claim_ids": [
+          "K1"
+        ]
+      },
+      {
+        "text": "To enable the feature \"Read and create issues for users' repositories\", the required OAuth scope is `repo`.",
+        "claim_ids": [
+          "K3"
+        ]
+      },
+      {
+        "text": "You must register your own OAuth app on GitHub, providing an application name, homepage URL, and an authorization callback URL.",
+        "claim_ids": [
+          "K2",
+          "K7"
+        ]
+      },
+      {
+        "text": "For external customers who are part of GitHub organizations with OAuth app access restrictions, their organization owners will need to approve your application for it to access private repositories.",
+        "claim_ids": [
+          "K5",
+          "K7"
+        ]
+      }
+    ],
+    "next_action": {
+      "instruction": "Register your GitHub OAuth app.",
+      "owner": "you",
+      "link_or_artifact": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app",
+      "success_condition": "Your OAuth app is successfully registered on GitHub, and you have obtained its Client ID and Client Secret.",
+      "claim_ids": [
+        "K2",
+        "K7"
+      ]
+    },
+    "recommended_path_id": "own_app_production",
+    "paths": [
+      {
+        "id": "own_app_testing",
+        "name": "Own OAuth App (Testing)",
+        "applicability": "For internal testing and development purposes, before deploying to external customers.",
+        "gates": [
+          {
+            "kind": "customer_admin_action",
+            "state": "unknown",
+            "note": "If testing within a GitHub organization that has OAuth app access restrictions, an organization owner might need to approve your application. The necessity depends on the organization's specific settings.",
+            "claim_ids": [
+              "K5",
+              "K7"
+            ]
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "You have administrative access to a GitHub personal account or an organization where you intend to register the OAuth app.",
+            "owner": "you",
+            "claim_ids": [
+              "K2"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "There is a limit of ten tokens issued per user/application/scope combination.",
+            "owner": "you",
+            "claim_ids": [
+              "K4"
+            ]
+          },
+          {
+            "text": "There is a rate limit of ten tokens created per hour.",
+            "owner": "you",
+            "claim_ids": [
+              "K4"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "register_oauth_app",
+            "title": "Register your OAuth app",
+            "instructions": "Navigate to your GitHub Developer settings, select 'OAuth Apps', and click 'New OAuth App'. Fill in the 'Application name', 'Homepage URL', and 'Authorization callback URL'. The callback URL for Composio is https://backend.composio.dev/api/v3/toolkits/auth/callback. An 'Application description' is optional. Ensure you only use public information when creating the app.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "Your OAuth app is successfully registered on GitHub, and you have access to its Client ID and Client Secret.",
+            "action_url": "https://github.com/settings/developers",
+            "effort": {
+              "known": true,
+              "low": 10,
+              "high": 30,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Based on typical web form submission and locating credentials.",
+              "claim_ids": [
+                "K2",
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K2",
+              "K6"
+            ]
+          },
+          {
+            "id": "request_user_authorization",
+            "title": "Request user authorization (test user)",
+            "instructions": "Once the app is registered, use your OAuth app's Client ID to initiate the authorization flow for a test user. The test user must have a verified email address on GitHub before authorizing your app.",
+            "owner": "you",
+            "step_dependencies": [
+              "register_oauth_app"
+            ],
+            "success_condition": "The test user successfully authorizes your OAuth app, and you receive an access token.",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Time for a developer to perform a basic authorization test.",
+              "claim_ids": [
+                "K4",
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K4",
+              "K6"
+            ]
+          },
+          {
+            "id": "conditional_org_approval_testing",
+            "title": "(Conditional) Organization Owner Approval",
+            "instructions": "If your test user belongs to an organization with OAuth app access restrictions, the organization owner must approve your application.",
+            "owner": "your_customer_admin",
+            "step_dependencies": [
+              "request_user_authorization"
+            ],
+            "success_condition": "The organization owner approves the application, granting access to private resources.",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 60,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Time can vary significantly depending on the organization owner's responsiveness.",
+              "claim_ids": [
+                "K5",
+                "K7"
+              ]
+            },
+            "claim_ids": [
+              "K5",
+              "K7"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 15,
+          "high": 45,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Estimated time for initial registration and a successful test authorization, assuming no organization owner approval is needed.",
+          "claim_ids": [
+            "K2",
+            "K4",
+            "K6"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 0,
+          "high": 0,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "No explicit waiting periods are documented for self-service actions. Conditional waiting for organization owner approval is managed separately.",
+          "claim_ids": []
+        },
+        "costs": [],
+        "claim_ids": [
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "K6",
+          "K7"
+        ]
+      },
+      {
+        "id": "own_app_production",
+        "name": "Own OAuth App (Production)",
+        "applicability": "For external customers accessing their GitHub repositories.",
+        "gates": [
+          {
+            "kind": "customer_admin_action",
+            "state": "required",
+            "note": "If an external customer uses your application within a GitHub organization that has OAuth app access restrictions, an organization owner must approve your application. Without this approval, the app will only access public resources.",
+            "claim_ids": [
+              "K5",
+              "K7"
+            ]
+          },
+          {
+            "kind": "security_assessment",
+            "state": "unknown",
+            "note": "It is unclear if GitHub requires formal security assessments or certifications for production-level OAuth apps used by external customers at scale, beyond general advice to use public information (K6). This requires further investigation.",
+            "claim_ids": [
+              "K6"
+            ]
+          },
+          {
+            "kind": "ai_data_use_terms",
+            "state": "unknown",
+            "note": "Specific data-use gates and terms, especially regarding AI/ML training, bulk export, or automation of data accessed via OAuth apps, are not documented (K6). This requires further investigation.",
+            "claim_ids": [
+              "K6"
+            ]
+          },
+          {
+            "kind": "business_or_identity_verification",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "app_review",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "partner_program",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "paid_access",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "You have administrative access to a GitHub personal account or an organization.",
+            "owner": "you",
+            "claim_ids": [
+              "K2"
+            ]
+          },
+          {
+            "text": "You have a registered GitHub OAuth app.",
+            "owner": "you",
+            "claim_ids": [
+              "K2"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "There is a limit of ten tokens issued per user/application/scope combination.",
+            "owner": "you",
+            "claim_ids": [
+              "K4"
+            ]
+          },
+          {
+            "text": "There is a rate limit of ten tokens created per hour.",
+            "owner": "you",
+            "claim_ids": [
+              "K4"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "register_oauth_app_production",
+            "title": "Register your OAuth app",
+            "instructions": "Navigate to your GitHub Developer settings, select 'OAuth Apps', and click 'New OAuth App'. Fill in the 'Application name', 'Homepage URL', and 'Authorization callback URL'. The callback URL for Composio is https://backend.composio.dev/api/v3/toolkits/auth/callback. An 'Application description' is optional. Ensure you only use public information when creating the app.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "Your OAuth app is successfully registered on GitHub, and you have access to its Client ID and Client Secret.",
+            "action_url": "https://github.com/settings/developers",
+            "effort": {
+              "known": true,
+              "low": 10,
+              "high": 30,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Based on typical web form submission and locating credentials.",
+              "claim_ids": [
+                "K2",
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K2",
+              "K6"
+            ]
+          },
+          {
+            "id": "inform_customers_email_verification",
+            "title": "Inform customers about email verification",
+            "instructions": "Inform your external customers that they must verify their email address associated with their GitHub account before they can authorize your OAuth app.",
+            "owner": "you",
+            "step_dependencies": [
+              "register_oauth_app_production"
+            ],
+            "success_condition": "Customers are aware of the email verification requirement for authorization.",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 10,
+              "high": 30,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Time for drafting and disseminating communication to customers.",
+              "claim_ids": [
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K6"
+            ]
+          },
+          {
+            "id": "guide_customer_authorization",
+            "title": "Guide customer through authorization",
+            "instructions": "Guide your customers to authorize your application using the OAuth flow. This will involve directing them to GitHub's authorization page with your app's Client ID and requested scopes.",
+            "owner": "you",
+            "step_dependencies": [
+              "register_oauth_app_production"
+            ],
+            "success_condition": "Customer successfully authorizes your OAuth app.",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Per-customer time to complete the authorization process.",
+              "claim_ids": [
+                "K4",
+                "K7"
+              ]
+            },
+            "claim_ids": [
+              "K4",
+              "K7"
+            ]
+          },
+          {
+            "id": "conditional_org_owner_approval_production",
+            "title": "(Conditional) Organization owner approval",
+            "instructions": "If a customer belongs to an organization with OAuth app access restrictions, their organization owner must approve your application for it to access non-public resources. You may need to provide guidance to the customer on how to request this approval.",
+            "owner": "your_customer_admin",
+            "step_dependencies": [
+              "guide_customer_authorization"
+            ],
+            "success_condition": "The organization owner approves the application, granting access to private resources.",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 60,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Time can vary significantly depending on the organization owner's responsiveness and internal processes.",
+              "claim_ids": [
+                "K5",
+                "K7"
+              ]
+            },
+            "claim_ids": [
+              "K5",
+              "K7"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 25,
+          "high": 75,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Estimated time for initial registration, preparing customer communications, and guiding a customer through authorization, excluding organization owner approval time.",
+          "claim_ids": [
+            "K2",
+            "K4",
+            "K6",
+            "K7"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 0,
+          "high": 0,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "No explicit waiting periods are documented for self-service actions. Conditional waiting for organization owner approval depends on the customer's organization.",
+          "claim_ids": []
+        },
+        "costs": [],
+        "claim_ids": [
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "K6",
+          "K7"
+        ]
+      }
+    ],
+    "scopes": [
+      {
+        "scope_string": "repo",
+        "purpose": "Grants full access to public and private repositories including read and write access to code, commit statuses, repository invitations, collaborators, deployment statuses, and repository webhooks.",
+        "classification": "read and create issues for users' repositories",
+        "claim_ids": [
+          "K3"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "trigger": "An external customer attempts to use your application within a GitHub organization that has OAuth app access restrictions.",
+        "consequence": "Your application will only be able to access public resources for that organization. This will prevent the desired \"Read and create issues for users' repositories\" functionality if those repositories are private.",
+        "resolution": "The organization owner must explicitly approve your application for use within their organization.",
+        "owner": "your_customer_admin",
+        "claim_ids": [
+          "K5",
+          "K7"
+        ]
+      }
+    ],
+    "agent_assistance": [],
+    "unknowns": [
+      {
+        "question": "Recent changes (about the last 18 months) to GitHub OAuth apps:",
+        "why_it_matters": "It is important to know if any policies or technical requirements have changed that could impact the developer's integration.",
+        "how_to_find_out": "Search GitHub developer blog or changelog for OAuth app updates."
+      },
+      {
+        "question": "Formal security assessment requirements for production apps:",
+        "why_it_matters": "Beyond general advice, it is unclear if there are specific security audits or certifications required for apps used by external customers at scale.",
+        "how_to_find_out": "Search GitHub documentation for \"OAuth app security audit\" or \"production requirements\"."
+      },
+      {
+        "question": "Costs associated with OAuth app API usage or registration:",
+        "why_it_matters": "While no costs were mentioned, it's common for API providers to have usage tiers or specific charges.",
+        "how_to_find_out": "Search GitHub pricing for developer tools or API usage."
+      },
+      {
+        "question": "Specific data-use gates and terms, especially regarding AI/ML training, bulk export, or automation:",
+        "why_it_matters": "The current documentation does not specify policies on how data accessed through OAuth apps can be used for these purposes.",
+        "how_to_find_out": "Search GitHub terms of service or developer agreement for data use, AI/ML, and automation clauses."
+      }
+    ],
+    "conflicts": [],
+    "claims": [
+      {
+        "id": "K1",
+        "text": "Third-party OAuth apps are supported.",
+        "conditions": "",
+        "source_ids": [
+          "S2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Creating an OAuth app",
+        "excerpt_status": "found",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K2",
+        "text": "Developers can create and register an OAuth app under their personal account or under any organization they have administrative access to. Registration requires an \"Application name\", \"Homepage URL\", and \"Authorization callback URL\". An \"Application description\" is optional.",
+        "conditions": "",
+        "source_ids": [
+          "S2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "You can create and register an OAuth app under your personal account or under any organization you have administrative access to.",
+        "excerpt_status": "found",
+        "review_result": "supported",
+        "support_note": "Confirmed in GitHub Docs 'Creating an OAuth app': personal accounts and orgs with admin access can register apps with name, homepage URL, and callback URL."
+      },
+      {
+        "id": "K3",
+        "text": "The smallest documented scope for \"read and create issues for users' repositories\" is `repo`. This scope grants \"full access to public and private repositories including read and write access to code, commit statuses, repository invitations, collaborators, deployment statuses, and repository webhooks.\"",
+        "conditions": "",
+        "source_ids": [
+          "S6"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Grants full access to public and private repositories including read and write access to code, commit statuses, repository invitations, collaborators, deployment statuses, and repository webhooks.",
+        "excerpt_status": "found",
+        "review_result": "supported",
+        "support_note": "Verified in GitHub Docs 'Scopes for OAuth apps': 'repo' is required for issues on private repositories; public-only access would require 'public_repo'."
+      },
+      {
+        "id": "K4",
+        "text": "To get a first test connection working, register the OAuth app as described in K2. The app can then be used to request user authorization. There is a limit of ten tokens issued per user/application/scope combination, and a rate limit of ten tokens created per hour.",
+        "conditions": "",
+        "source_ids": [
+          "S2",
+          "S4"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "When an OAuth app wants to identify you by your account on GitHub, you'll see a page with the app's developer contact information and a list of the specific data that's being requested.",
+        "excerpt_status": "not_found",
+        "review_result": "supported",
+        "support_note": "Verified in GitHub Docs 'Authorizing OAuth apps': token issuance is limited to 10 tokens per hour and 10 per user/app/scope combination."
+      },
+      {
+        "id": "K5",
+        "text": "For organizations with OAuth app access restrictions, organization owners must approve the application for use in that organization; otherwise, the app will only access public resources. There is no mention of a general verification program for all external customer-facing OAuth apps.",
+        "conditions": "",
+        "source_ids": [
+          "S4"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "For organizations *with* OAuth app access restrictions, you can request that organization owners approve the application for use in that organization.",
+        "excerpt_status": "found",
+        "review_result": "supported",
+        "support_note": "Confirmed in GitHub Docs 'Authorizing OAuth apps': for orgs with access restrictions, organization owners must approve before the app can access private resources."
+      },
+      {
+        "id": "K6",
+        "text": "Developers should only use public information when creating an OAuth app and avoid sensitive data like internal URLs. Users must verify their email address before authorizing an OAuth app. No specific costs for registration or API usage, security assessment programs, or explicit data-use gates (including AI/ML training, bulk export, or automation terms) are documented in the provided sources.",
+        "conditions": "",
+        "source_ids": [
+          "S2",
+          "S4"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Only use information in your OAuth app that you consider public. Avoid using sensitive data, such as internal URLs, when creating an OAuth app.",
+        "excerpt_status": "found",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K7",
+        "text": "The developer can register the OAuth app and define its properties, including callback URLs. Another party (the user) is required to authorize the app. If the user belongs to an organization with OAuth app access restrictions, an organization owner must approve the application.",
+        "conditions": "",
+        "source_ids": [
+          "S2",
+          "S4"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Click Register application.",
+        "excerpt_status": "found",
+        "review_result": "supported",
+        "support_note": "Confirmed across GitHub Docs 'Creating an OAuth app' and 'Authorizing OAuth apps': developer self-serves app registration; user and org admin approve access."
+      }
+    ]
+  },
+  "difficulty": {
+    "own_app_testing": {
+      "label": "Not enough evidence",
+      "reasons": [
+        "Not established: Customer Admin Action"
+      ],
+      "unknown_gates": [
+        "customer_admin_action"
+      ]
+    },
+    "own_app_production": {
+      "label": "Requires coordination (provisional)",
+      "reasons": [
+        "Required: Customer Admin Action",
+        "Not established: Security Assessment",
+        "Not established: Business Or Identity Verification",
+        "Not established: App Review",
+        "Not established: Partner Program",
+        "Not established: Paid Access"
+      ],
+      "unknown_gates": [
+        "security_assessment",
+        "business_or_identity_verification",
+        "app_review",
+        "partner_program",
+        "paid_access"
+      ]
+    },
+    "overall": {
+      "label": "Requires coordination (provisional)",
+      "reasons": [
+        "Required: Customer Admin Action",
+        "Not established: Security Assessment",
+        "Not established: Business Or Identity Verification",
+        "Not established: App Review",
+        "Not established: Partner Program",
+        "Not established: Paid Access",
+        "Based on production path: own_app_production"
+      ],
+      "unknown_gates": [
+        "security_assessment",
+        "business_or_identity_verification",
+        "app_review",
+        "partner_program",
+        "paid_access"
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "S2",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app",
+      "final_url": "",
+      "title": "Creating an OAuth app - GitHub Docs",
+      "kind": "fetched_page",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:39:51.229393+00:00",
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S4",
+      "url": "https://docs.github.com/en/apps/oauth-apps/using-oauth-apps/authorizing-oauth-apps",
+      "final_url": "",
+      "title": "Authorizing OAuth apps - GitHub Docs",
+      "kind": "fetched_page",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:39:51.229393+00:00",
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S6",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps",
+      "final_url": "",
+      "title": "Scopes for OAuth apps - GitHub Docs",
+      "kind": "fetched_page",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:40:14.357119+00:00",
+      "publication_date": "Wed, 01 Jul 2020 00:00:00 GMT",
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "uncited_sources": [
+    {
+      "id": "S1",
+      "url": "https://nango.dev/docs/api-integrations/github-app-oauth/how-to-register-your-own-github-app-api-oauth-app",
+      "final_url": "",
+      "title": "How to register your own GitHub App OAuth app - Nango Docs",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:39:51.229393+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S3",
+      "url": "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
+      "final_url": "",
+      "title": "Registering a GitHub App - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:39:51.229393+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S5",
+      "url": "https://www.freecodecamp.org/news/how-to-set-up-a-github-oauth-application",
+      "final_url": "",
+      "title": "How to Set Up a GitHub OAuth Application",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:39:51.229393+00:00",
+      "publication_date": "Thu, 27 Oct 2022 21:31:36 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S7",
+      "url": "https://blog.logto.io/github-apps-vs-oauth-apps",
+      "final_url": "",
+      "title": "GitHub Apps vs. OAuth Apps: Choose the right GitHub connection · Logto blog",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:40:14.357119+00:00",
+      "publication_date": "Fri, 24 Oct 2025 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S8",
+      "url": "https://northflank.com/blog/integrating-with-github-github-apps-and-oauth",
+      "final_url": "",
+      "title": "Integrating with GitHub - GitHub Apps and OAuth | Blog — Northflank",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:40:14.357119+00:00",
+      "publication_date": "Fri, 17 Dec 2021 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S9",
+      "url": "https://github.com/orgs/community/discussions/7891",
+      "final_url": "",
+      "title": "Read-Only OAuth Scope · community · Discussion #7891 · GitHub",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:40:14.357119+00:00",
+      "publication_date": "Tue, 25 Oct 2022 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "attempts": [
+    {
+      "id": "A-github-20261104-143709",
+      "actor": "assisted",
+      "provider": "github",
+      "scenario": "Test connection via custom or managed auth for oauthpath-test-1793803029",
+      "action": "Create auth config and connect test user for github",
+      "start_time": "2026-11-04T14:37:09.039725+00:00",
+      "end_time": "2026-11-04T14:37:09.666681+00:00",
+      "environment": "Local test account",
+      "observed_result": "Error querying toolkit auth scheme for 'github': 401 Invalid API key: ck_**Pk7T",
+      "status": "failed",
+      "artifact_path": null,
+      "limitation": "Connection attempt failed during API/SDK execution; credentials or network blocked",
+      "example": false
+    }
+  ],
+  "review": {
+    "reviewer": "Monesh Patidar",
+    "reviewed_at": "2026-11-04T14:53:47.086631+00:00",
+    "audited_claim_ids": [
+      "K2",
+      "K3",
+      "K4",
+      "K5",
+      "K7"
+    ],
+    "based_on_version": 1
+  },
+  "warnings": [
+    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate app_review: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate paid_access: all supporting claims are 'unknown' — assertion is weakly supported"
+  ],
+  "run": {
+    "model_calls": 6,
+    "searches": 2,
+    "page_reads": 3,
+    "fetch_attempts": 3,
+    "tokens_input": 28618,
+    "tokens_output": 6139,
+    "cost": "unavailable",
+    "cost_basis": "Price not configured for cost calculation",
+    "model": "gemini-2.5-flash",
+    "duration_seconds": 77.4,
+    "research_timed_out": false
+  }
+}

@@ -20,16 +20,23 @@ class RateLimitExceeded(Exception):
 
 
 _gemini_client: genai.Client | None = None
+_client_loop = None
 
 
 def get_gemini_client() -> genai.Client:
-    """Return a cached google-genai Client."""
-    global _gemini_client
-    if _gemini_client is None:
+    """Return a google-genai Client bound to current event loop."""
+    global _gemini_client, _client_loop
+    try:
+        curr_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        curr_loop = None
+
+    if _gemini_client is None or _client_loop != curr_loop:
         key = os.getenv("GEMINI_API_KEY", GEMINI_API_KEY)
         if not key:
             raise ValueError("GEMINI_API_KEY is not configured")
         _gemini_client = genai.Client(api_key=key)
+        _client_loop = curr_loop
     return _gemini_client
 
 
@@ -46,15 +53,15 @@ def _is_rate_limit(exc: Exception) -> bool:
 
 
 def _extract_retry_delay(exc: Exception) -> float:
-    """Extract suggested delay in seconds, defaulting to 10s."""
+    """Extract suggested delay in seconds, defaulting to 20s."""
     msg = str(exc)
     match = re.search(r'retry(?:ing)? after (\d+(?:\.\d+)?)s', msg, re.IGNORECASE)
     if match:
         try:
-            return min(float(match.group(1)), 30.0)
+            return min(max(float(match.group(1)), 10.0), 40.0)
         except ValueError:
             pass
-    return 10.0
+    return 20.0
 
 
 async def generate(

@@ -33,7 +33,7 @@ async def main() -> int:
         resp, usage = await generate(
             contents=["Respond with the exact word: OK"],
             system="You are a system health check.",
-            timeout_s=15.0,
+            timeout_s=30.0,
             max_output_tokens=256,
         )
         text_out = (resp.text or "").strip()
@@ -78,7 +78,7 @@ async def main() -> int:
             contents=["Output status as 'ready' and checks_passed as 3."],
             system="Return JSON matching the schema.",
             json_schema=mini_schema,
-            timeout_s=15.0,
+            timeout_s=30.0,
             max_output_tokens=256,
         )
         json_out = (resp.text or "").strip()

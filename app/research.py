@@ -717,6 +717,7 @@ async def run_research_gemini(
 
         contents.append(types.Content(role="user", parts=parts))
         turns += 1
+        await asyncio.sleep(1.0)
 
     successful_page_reads = sum(1 for s in sources if s.retrieval_status == "read")
     run_stats = {

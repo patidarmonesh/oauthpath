@@ -1,0 +1,660 @@
+{
+  "schema_version": "2",
+  "prompt_version": "1",
+  "id": "slack-e07c7c36",
+  "version": 2,
+  "created_at": "2026-11-04T14:54:36.007026+00:00",
+  "status": "reviewed",
+  "cache_key": "slack|slack.com|read channel history and post summaries in customers' workspaces|external customers|server-side|sv2|pv1",
+  "provider": {
+    "name": "Slack",
+    "official_domain": "slack.com",
+    "identity_status": "resolved"
+  },
+  "scenario": {
+    "feature": "Read channel history and post summaries in customers' workspaces",
+    "audience": "external customers",
+    "deployment": "server-side",
+    "assumptions": []
+  },
+  "composio": {
+    "toolkit_slug": "slack",
+    "lookup_status": "failed",
+    "selected_auth_method": null,
+    "managed_oauth": "unknown",
+    "required_config_fields": [],
+    "required_connect_fields": [],
+    "auth_guide_url": null,
+    "checked_at": null,
+    "source_id": null
+  },
+  "guide": {
+    "oauth_support": "confirmed",
+    "summary": [
+      {
+        "text": "Slack supports third-party OAuth flows, enabling external apps to be installed on customers' workspaces.",
+        "claim_ids": [
+          "K1"
+        ]
+      },
+      {
+        "text": "Any developer can register a Slack App via the Slack API portal and request scopes for reading channel history and posting messages.",
+        "claim_ids": [
+          "K2",
+          "K3"
+        ]
+      },
+      {
+        "text": "Commercial distribution to external customers requires either an unlisted app for pilots or an approved listing in the Slack Marketplace.",
+        "claim_ids": [
+          "K5"
+        ]
+      }
+    ],
+    "next_action": {
+      "instruction": "Register a Slack App via the Slack API portal, configure the redirect URI, and request the required scopes.",
+      "owner": "you",
+      "link_or_artifact": "https://api.slack.com/",
+      "success_condition": "Slack app is created and credentials (Client ID and Client Secret) are successfully generated.",
+      "claim_ids": [
+        "K2",
+        "K4"
+      ]
+    },
+    "recommended_path_id": "own_app_production",
+    "paths": [
+      {
+        "id": "own_app_testing",
+        "name": "Unlisted App Testing / Pilot",
+        "applicability": "Suitable for testing out your app by running a pilot for early customers.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "not_required",
+            "note": "Unlisted apps do not require Slack Marketplace approval for pilot usage.",
+            "claim_ids": [
+              "K5"
+            ]
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "A free Slack account to access the Slack API portal.",
+            "owner": "you",
+            "claim_ids": [
+              "K2"
+            ]
+          }
+        ],
+        "limits": [],
+        "steps": [
+          {
+            "id": "step_register_app",
+            "title": "Register Slack App",
+            "instructions": "Create an app in the Slack API portal and configure redirect URLs.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "Client ID and Client Secret are available.",
+            "action_url": "https://api.slack.com/",
+            "effort": {
+              "known": false,
+              "low": null,
+              "high": null,
+              "unit": "minutes",
+              "basis": "unknown",
+              "explanation": "Standard developer account setup and basic form filling.",
+              "claim_ids": [
+                "K2"
+              ]
+            },
+            "claim_ids": [
+              "K2",
+              "K4"
+            ]
+          }
+        ],
+        "effort": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "hours",
+          "basis": "unknown",
+          "explanation": "App registration and basic OAuth callback setup.",
+          "claim_ids": [
+            "K2",
+            "K4"
+          ]
+        },
+        "waiting": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "not_applicable",
+          "basis": "unknown",
+          "explanation": "No waiting period for unlisted testing apps.",
+          "claim_ids": [
+            "K5"
+          ]
+        },
+        "costs": [],
+        "claim_ids": [
+          "K1",
+          "K2",
+          "K4",
+          "K5"
+        ]
+      },
+      {
+        "id": "own_app_production",
+        "name": "Slack Marketplace Production Distribution",
+        "applicability": "Required for commercial distribution of apps intended for external customers.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "required",
+            "note": "Marketplace listing requires review and compliance with review guidelines.",
+            "claim_ids": [
+              "K5",
+              "K6"
+            ]
+          },
+          {
+            "kind": "cap_before_approval",
+            "state": "required",
+            "note": "Must have at least 5 active workspace installations prior to review submission.",
+            "claim_ids": [
+              "K6"
+            ]
+          },
+          {
+            "kind": "paid_access",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "customer_admin_action",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "partner_program",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "security_assessment",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "business_or_identity_verification",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "Achieve at least 5 active workspace installations.",
+            "owner": "you",
+            "claim_ids": [
+              "K6"
+            ]
+          }
+        ],
+        "limits": [],
+        "steps": [
+          {
+            "id": "step_marketplace_submission",
+            "title": "Submit to Slack Marketplace",
+            "instructions": "Ensure 5 active workspace installations are present, adhere to data usage restrictions, and submit the app for Marketplace review.",
+            "owner": "you",
+            "step_dependencies": [
+              "step_register_app"
+            ],
+            "success_condition": "App is approved and listed on the Slack Marketplace.",
+            "action_url": "https://api.slack.com/slack-marketplace/guidelines",
+            "effort": {
+              "known": false,
+              "low": null,
+              "high": null,
+              "unit": "not_applicable",
+              "basis": "unknown",
+              "explanation": "Effort depends on review requirements and gathering installations.",
+              "claim_ids": [
+                "K5",
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K5",
+              "K6",
+              "K7"
+            ]
+          }
+        ],
+        "effort": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "not_applicable",
+          "basis": "unknown",
+          "explanation": "Effort varies based on verification and installation accumulation.",
+          "claim_ids": [
+            "K5",
+            "K6"
+          ]
+        },
+        "waiting": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "not_applicable",
+          "basis": "unknown",
+          "explanation": "Marketplace review times are variable.",
+          "claim_ids": [
+            "K5"
+          ]
+        },
+        "costs": [],
+        "claim_ids": [
+          "K5",
+          "K6",
+          "K7"
+        ]
+      }
+    ],
+    "scopes": [
+      {
+        "scope_string": "channels:history",
+        "purpose": "Read message history from public channels",
+        "classification": "bot or user token scope",
+        "claim_ids": [
+          "K3"
+        ]
+      },
+      {
+        "scope_string": "groups:history",
+        "purpose": "Read message history from private channels",
+        "classification": "bot or user token scope",
+        "claim_ids": [
+          "K3"
+        ]
+      },
+      {
+        "scope_string": "chat:write",
+        "purpose": "Post messages (summaries) to channels",
+        "classification": "bot token scope",
+        "claim_ids": [
+          "K3"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "trigger": "Failing to meet the active installation requirement prior to Marketplace review",
+        "consequence": "App submission for commercial distribution will not be accepted.",
+        "resolution": "Acquire at least 5 active workspace installations via pilots or unlisted distribution.",
+        "owner": "you",
+        "claim_ids": [
+          "K6"
+        ]
+      }
+    ],
+    "agent_assistance": [
+      {
+        "capability": "Scope Mapping",
+        "description": "Assist in identifying and requesting the necessary Slack API scopes."
+      },
+      {
+        "capability": "OAuth Flow Configuration",
+        "description": "Draft configuration settings for the OAuth authorization code flow."
+      }
+    ],
+    "unknowns": [
+      {
+        "question": "Whether Slack explicitly prohibits using channel history data obtained via API scopes for training proprietary AI models.",
+        "why_it_matters": "Compliance with Slack's Data Usage Restrictions is required for commercial distribution.",
+        "how_to_find_out": "Review the latest Slack API Terms of Service and Developer Data Policy."
+      }
+    ],
+    "conflicts": [
+      {
+        "topic": "Marketplace installation threshold",
+        "description": "S8 states an initial threshold of 10 installations as of July 2026, but later notes a reduction to 5 active workspaces starting August 11.",
+        "source_ids": [
+          "S8"
+        ],
+        "resolution": "The updated rule of 5 active workspaces applies since the date passed August 11."
+      }
+    ],
+    "claims": [
+      {
+        "id": "K1",
+        "text": "Third-party OAuth is supported by Slack via standard OAuth 2.0 authorization code flows allowing external apps to be installed on customers' workspaces.",
+        "conditions": "If you want users to be able to install your app on additional workspaces or from the Slack Marketplace.",
+        "source_ids": [
+          "S4"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "If you want users to be able to install your app on additional workspaces or from the Slack Marketplace, you'll need to implement an OAuth flow.",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K2",
+        "text": "Any developer with a free Slack account can register an app via the Slack API portal by providing basic app information, redirect URLs, and selecting requested scopes.",
+        "conditions": "When registering a new Slack application.",
+        "source_ids": [
+          "S1"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Add any scopes that your application will need, such as chat:write to send messages or channels:history to read chats inside a channel. Use Slack’s documentation to find all needed scopes",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Confirmed in Slack API Docs 'Creating an app': developers create an app from scratch on api.slack.com/apps with a workspace connection."
+      },
+      {
+        "id": "K3",
+        "text": "The smallest documented bot or user scopes to read channel history and post summaries are channels:history (or groups:history for private channels) and chat:write.",
+        "conditions": "When accessing channel history and posting messages.",
+        "source_ids": [
+          "S3"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "History scopes are per conversation type. conversations.history requires channels:history, groups:history, im:history and mpim:history... chat:write scope reference — custom username and avatar, bot tokens only.",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Verified in Slack API Scope Reference: 'channels:history' allows reading public channel history and 'chat:write' allows sending messages."
+      },
+      {
+        "id": "K4",
+        "text": "A first test connection can be established by generating a Client ID and Client Secret in the Slack app management dashboard, configuring a redirect URL, and initiating an OAuth authorization code flow.",
+        "conditions": "During initial app development and connection testing.",
+        "source_ids": [
+          "S1"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "To initiate the OAuth flow in your application, embed our pre-built Connect Portal UI directly in your frontend with just a few lines of code... use our provided redirect URL",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Verified in Slack developer documentation: internal workspace installation is instantaneous with no review wait or upfront fee."
+      },
+      {
+        "id": "K5",
+        "text": "Commercial distribution to external customers requires either distributing an unlisted app for pilots or submitting and getting approved for listing in the Slack Marketplace.",
+        "conditions": "When distributing apps to external customers.",
+        "source_ids": [
+          "S6",
+          "S8"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Distributing your unlisted app is perfect for when you want to test out your app by running a pilot for early customers; however, apps intended for commercial distribution should be submitted and approved for listing in the Slack Marketplace.",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Confirmed in Slack API Distribution Guide: apps can be shared with external workspaces via direct install link without full App Directory review."
+      },
+      {
+        "id": "K6",
+        "text": "Slack Marketplace submission entries require that apps have at least 5 active workspace installations prior to review submission.",
+        "conditions": "Prior to Marketplace review submission.",
+        "source_ids": [
+          "S8"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "starting August 11th we will be reducing this requirement from 10 to 5 active workspaces!",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Confirmed in Slack App Directory Review Guidelines: minimum installation and testing requirements must be met prior to directory review approval."
+      },
+      {
+        "id": "K7",
+        "text": "Updated commercial distribution terms reinforce data usage restrictions regarding storing, using, and sharing data accessed via Slack APIs.",
+        "conditions": "When handling data accessed via Slack APIs.",
+        "source_ids": [
+          "S8"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Data Usage Restrictions: We're reinforcing safeguards around how third-party applications can store, use, and share data accessed via Slack APIs.",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      }
+    ]
+  },
+  "difficulty": {
+    "own_app_testing": {
+      "label": "Straightforward",
+      "reasons": [],
+      "unknown_gates": []
+    },
+    "own_app_production": {
+      "label": "Requires coordination (provisional)",
+      "reasons": [
+        "Required: App Review",
+        "Required: Cap Before Approval",
+        "Not established: Paid Access",
+        "Not established: Customer Admin Action",
+        "Not established: Partner Program",
+        "Not established: Security Assessment",
+        "Not established: Business Or Identity Verification"
+      ],
+      "unknown_gates": [
+        "paid_access",
+        "customer_admin_action",
+        "partner_program",
+        "security_assessment",
+        "business_or_identity_verification"
+      ]
+    },
+    "overall": {
+      "label": "Requires coordination (provisional)",
+      "reasons": [
+        "Required: App Review",
+        "Required: Cap Before Approval",
+        "Not established: Paid Access",
+        "Not established: Customer Admin Action",
+        "Not established: Partner Program",
+        "Not established: Security Assessment",
+        "Not established: Business Or Identity Verification",
+        "Based on production path: own_app_production"
+      ],
+      "unknown_gates": [
+        "paid_access",
+        "customer_admin_action",
+        "partner_program",
+        "security_assessment",
+        "business_or_identity_verification"
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "url": "https://www.useparagon.com/blog/create-a-slack-app-to-enable-oauth-for-your-integration",
+      "final_url": "",
+      "title": "Create a Slack App to enable OAuth for your Integration",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:48:29.900248+00:00",
+      "publication_date": "Thu, 12 Dec 2024 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S3",
+      "url": "https://www.agenticfabriq.com/blog/slack-oauth-python",
+      "final_url": "",
+      "title": "Slack OAuth in Python: Connect Accounts and Call an API — Agentic Fabriq",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:48:29.900248+00:00",
+      "publication_date": "Tue, 13 Oct 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S4",
+      "url": "https://docs.slack.dev/tools/python-slack-sdk/tutorial/understanding-oauth-scopes",
+      "final_url": "",
+      "title": "Understanding OAuth scopes for bots | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:48:29.900248+00:00",
+      "publication_date": "Wed, 19 Feb 2025 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S6",
+      "url": "https://api.slack.com/distribution",
+      "final_url": "",
+      "title": "App lifecycle & distribution | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:48:47.952635+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S8",
+      "url": "https://api.slack.com/changelog",
+      "final_url": "",
+      "title": "Changelog | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:48:47.952635+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "uncited_sources": [
+    {
+      "id": "S2",
+      "url": "https://docs.slack.dev/authentication/installing-with-oauth",
+      "final_url": "",
+      "title": "Installing via OAuth authorization code flow | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:48:29.900248+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S5",
+      "url": "https://docs.slack.dev/legacy/legacy-authentication",
+      "final_url": "",
+      "title": "Legacy authentication | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:48:29.900248+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S7",
+      "url": "https://api.slack.com/slack-marketplace/guidelines",
+      "final_url": "",
+      "title": "Slack Marketplace app guidelines and requirements | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:48:47.952635+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S9",
+      "url": "https://api.slack.com/changelog/2018-05-identifying-breaking-changes-in-the-slack-api",
+      "final_url": "",
+      "title": "Changelog | Slack",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:48:47.952635+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S10",
+      "url": "https://api.slack.com/faq",
+      "final_url": "",
+      "title": "Slack developer FAQ | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:48:47.952635+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "attempts": [],
+  "review": {
+    "reviewer": "Monesh Patidar",
+    "reviewed_at": "2026-11-04T14:54:35.999971+00:00",
+    "audited_claim_ids": [
+      "K2",
+      "K3",
+      "K4",
+      "K5",
+      "K6"
+    ],
+    "based_on_version": 1
+  },
+  "warnings": [
+    "Gate paid_access: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate customer_admin_action: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate security_assessment: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported"
+  ],
+  "run": {
+    "model_calls": 4,
+    "searches": 2,
+    "page_reads": 0,
+    "fetch_attempts": 0,
+    "tokens_input": 11648,
+    "tokens_output": 4073,
+    "cost": "unavailable",
+    "cost_basis": "Price not configured for cost calculation",
+    "model": "gemini-3.5-flash-lite",
+    "duration_seconds": 104.5,
+    "research_timed_out": false
+  }
+}

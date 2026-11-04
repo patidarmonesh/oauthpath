@@ -575,10 +575,11 @@ async def test_failure_modes_missing_keys_and_deadlines(tmp_path):
     store = Store(str(tmp_path / "fail.db"))
 
     # 1. Missing API key
-    with patch("app.research.ANTHROPIC_API_KEY", ""):
-        guide, err = await run_pipeline("GitHub", "sync", "external", store=store)
-        assert guide is None
-        assert "Research failed" in err or "API key" in err
+    with patch.dict(os.environ, {"LLM_PROVIDER": "anthropic"}):
+        with patch("app.research.ANTHROPIC_API_KEY", ""):
+            guide, err = await run_pipeline("GitHub", "sync", "external", store=store)
+            assert guide is None
+            assert "Research failed" in err or "API key" in err
 
     # 2. Delayed call exceeding job deadline bounds
     with patch("app.config.ANTHROPIC_API_KEY", "mock-key"):

@@ -36,3 +36,16 @@ To ensure any evaluator, developer, or teammate can run, test, and verify OAuthP
 - **Composio Hobby ($0)**: Live toolkit metadata discovery and local test connection verification.
 - **Render Free Tier**: Zero-cost web hosting with persistent git-backed seed import on service launch.
 - **Dual-Stack Preservation**: The Anthropic path (`LLM_PROVIDER=anthropic`) is preserved intact behind the same two-layer schema, code-owned evidence registry, and deadline invariants.
+
+## 6. Audit in practice: verifying claims against primary documentation
+
+To illustrate how the 15-claim human audit operates at the boundary between raw LLM extraction and published provider policy:
+
+### Example: Gmail Scope Sensitivity and Security Assessment (Claim K4 & K7)
+- **Candidate Claim Text**: The draft synthesis asserted that requesting sensitive Gmail scopes triggers Google OAuth verification and CASA security assessment.
+- **Auditor Verification**: We cross-referenced Google's published *OAuth 2.0 Policies & Verification Guidelines* and the *App Defense Alliance CASA Standard*:
+  1. `https://www.googleapis.com/auth/gmail.send` is classified by Google as **Sensitive**, requiring branding verification and domain verification.
+  2. `https://www.googleapis.com/auth/gmail.readonly` is classified by Google as **Restricted**, which legally binds the app to an annual Cloud Application Security Assessment (CASA Tier 2) by an authorized third-party lab if accessed by external users.
+- **Audit Action**: The auditor validated the claim basis as `supported`, citing the official Google API documentation, and entered an explicit, non-empty support note:
+  > *"Confirmed in Google OAuth Verification Policy: 'gmail.send' is classified sensitive; 'gmail.readonly' is classified restricted and requires annual CASA Tier 2 audit."*
+- **Outcome**: The promotion gate verified non-empty support notes, valid source URLs, and schema invariants before promoting the draft from `draft` (v1) to immutable seed record `data/reviewed/gmail-google-b419b8d4-v2.json` (v2). No unverified assertions were permitted to enter the immutable seed catalog.

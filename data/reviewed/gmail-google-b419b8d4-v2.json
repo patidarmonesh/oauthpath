@@ -1,0 +1,757 @@
+{
+  "schema_version": "2",
+  "prompt_version": "1",
+  "id": "gmail-google-b419b8d4",
+  "version": 2,
+  "created_at": "2026-11-04T14:55:11.630268+00:00",
+  "status": "reviewed",
+  "cache_key": "gmail (google)|google.com|send email on the user's behalf; optionally read the inbox|external customers|server-side|sv2|pv1",
+  "provider": {
+    "name": "Gmail (Google)",
+    "official_domain": "google.com",
+    "identity_status": "resolved"
+  },
+  "scenario": {
+    "feature": "Send email on the user's behalf; optionally read the inbox",
+    "audience": "external customers",
+    "deployment": "server-side",
+    "assumptions": []
+  },
+  "composio": {
+    "toolkit_slug": "gmail",
+    "lookup_status": "failed",
+    "selected_auth_method": null,
+    "managed_oauth": "unknown",
+    "required_config_fields": [],
+    "required_connect_fields": [],
+    "auth_guide_url": null,
+    "checked_at": null,
+    "source_id": null
+  },
+  "guide": {
+    "oauth_support": "confirmed",
+    "summary": [
+      {
+        "text": "Google fully supports third-party OAuth 2.0 for server-side applications accessing the Gmail API.",
+        "claim_ids": [
+          "K1"
+        ]
+      },
+      {
+        "text": "Developers can register an OAuth app in Google Cloud by setting the consent screen to External or Internal user types.",
+        "claim_ids": [
+          "K2"
+        ]
+      },
+      {
+        "text": "Sending email and optionally reading the inbox requires the sensitive scopes `https://www.googleapis.com/auth/gmail.send` and `https://www.googleapis.com/auth/gmail.readonly`.",
+        "claim_ids": [
+          "K3"
+        ]
+      },
+      {
+        "text": "External customer deployments requesting sensitive scopes trigger Google's OAuth app verification and security assessments.",
+        "claim_ids": [
+          "K4"
+        ]
+      }
+    ],
+    "next_action": {
+      "instruction": "Create a Google Cloud project and configure the OAuth consent screen with external user type.",
+      "owner": "you",
+      "link_or_artifact": "https://console.cloud.google.com/",
+      "success_condition": "A Google Cloud project is created and the OAuth consent screen is configured.",
+      "claim_ids": [
+        "K2"
+      ]
+    },
+    "recommended_path_id": "own_app_production",
+    "paths": [
+      {
+        "id": "own_app_testing",
+        "name": "Testing & Development Mode",
+        "applicability": "Suitable for initial development and testing with up to 100 test users without immediate app verification.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "not_required",
+            "note": "Not mandatory for initial testing using test users under the testing publishing status.",
+            "claim_ids": [
+              "K5"
+            ]
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "A Google Cloud account to create a project and configure credentials.",
+            "owner": "you",
+            "claim_ids": [
+              "K2"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Limited to up to 100 test users for apps in Testing publishing status.",
+            "owner": "provider",
+            "claim_ids": [
+              "K5"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "step_test_creds",
+            "title": "Create Test Credentials",
+            "instructions": "Create an OAuth client ID in the Google Cloud Console and configure a test consent screen adding test users.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "OAuth client ID is created and test users are added.",
+            "action_url": "https://console.cloud.google.com/",
+            "effort": {
+              "known": true,
+              "low": 15,
+              "high": 30,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Estimated time to set up a Google Cloud project and create test credentials.",
+              "claim_ids": [
+                "K2",
+                "K5"
+              ]
+            },
+            "claim_ids": [
+              "K2",
+              "K5"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 1,
+          "high": 2,
+          "unit": "hours",
+          "basis": "author_estimate",
+          "explanation": "Total setup effort for testing path.",
+          "claim_ids": [
+            "K2",
+            "K5"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 0,
+          "high": 0,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "No waiting period for testing setup.",
+          "claim_ids": [
+            "K5"
+          ]
+        },
+        "costs": [],
+        "claim_ids": [
+          "K2",
+          "K5"
+        ]
+      },
+      {
+        "id": "own_app_production",
+        "name": "Production Deployment for External Customers",
+        "applicability": "Required when deploying the feature to external customers utilizing sensitive Gmail scopes.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "required",
+            "note": "Required for external users requesting sensitive or restricted Gmail scopes.",
+            "claim_ids": [
+              "K3",
+              "K4",
+              "K6"
+            ]
+          },
+          {
+            "kind": "security_assessment",
+            "state": "required",
+            "note": "Sensitive scopes require security assessments like CASA tier reviews.",
+            "claim_ids": [
+              "K4",
+              "K6",
+              "K7"
+            ]
+          },
+          {
+            "kind": "ai_data_use_terms",
+            "state": "required",
+            "note": "Restrictions apply on AI/ML model training using restricted scope user data without explicit consent.",
+            "claim_ids": [
+              "K7"
+            ]
+          },
+          {
+            "kind": "customer_admin_action",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "paid_access",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "partner_program",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "business_or_identity_verification",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "Google Cloud project with OAuth consent screen set to External user type.",
+            "owner": "you",
+            "claim_ids": [
+              "K2",
+              "K6"
+            ]
+          },
+          {
+            "text": "Compliance with Google API Services User Data Policy.",
+            "owner": "you",
+            "claim_ids": [
+              "K7"
+            ]
+          }
+        ],
+        "limits": [],
+        "steps": [
+          {
+            "id": "step_prod_setup",
+            "title": "Configure Production OAuth and Submit for Verification",
+            "instructions": "Implement server-side authorization flow, configure production OAuth client credentials, and submit the app for Google OAuth verification and security assessment.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "Verification and security assessment submission are completed.",
+            "action_url": "https://console.cloud.google.com/",
+            "effort": {
+              "known": true,
+              "low": 2,
+              "high": 5,
+              "unit": "hours",
+              "basis": "author_estimate",
+              "explanation": "Estimated effort to implement server-side flow and prepare verification submission materials.",
+              "claim_ids": [
+                "K1",
+                "K4",
+                "K8"
+              ]
+            },
+            "claim_ids": [
+              "K1",
+              "K4",
+              "K8"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 2,
+          "high": 5,
+          "unit": "hours",
+          "basis": "author_estimate",
+          "explanation": "Development and submission preparation effort.",
+          "claim_ids": [
+            "K1",
+            "K4",
+            "K8"
+          ]
+        },
+        "waiting": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "calendar_days",
+          "basis": "unknown",
+          "explanation": "Google OAuth app verification and security assessment typically range from 2 to 4 weeks.",
+          "claim_ids": [
+            "K4"
+          ]
+        },
+        "costs": [],
+        "claim_ids": [
+          "K1",
+          "K4",
+          "K6",
+          "K7",
+          "K8"
+        ]
+      }
+    ],
+    "scopes": [
+      {
+        "scope_string": "https://www.googleapis.com/auth/gmail.send",
+        "purpose": "Send email on the user's behalf",
+        "classification": "sensitive",
+        "claim_ids": [
+          "K3"
+        ]
+      },
+      {
+        "scope_string": "https://www.googleapis.com/auth/gmail.readonly",
+        "purpose": "Optionally read the user's inbox",
+        "classification": "sensitive",
+        "claim_ids": [
+          "K3"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "trigger": "Requesting sensitive scopes (`gmail.send`, `gmail.readonly`) for external customers without Google OAuth verification and CASA review",
+        "consequence": "App verification failure or token usage restrictions for external users.",
+        "resolution": "Submit the application for Google OAuth verification and complete the required security assessment.",
+        "owner": "you",
+        "claim_ids": [
+          "K3",
+          "K4",
+          "K7"
+        ]
+      }
+    ],
+    "agent_assistance": [
+      {
+        "capability": "Code Generation",
+        "description": "Generate server-side OAuth 2.0 flow implementation code for Google APIs."
+      },
+      {
+        "capability": "Scope Mapping",
+        "description": "Map required features to minimal necessary Google OAuth scope strings."
+      }
+    ],
+    "unknowns": [
+      {
+        "question": "What is the exact current pricing charged by authorized labs for CASA security assessments?",
+        "why_it_matters": "Determines the financial overhead for launching an external integration.",
+        "how_to_find_out": "Check current approved CASA lab pricing pages."
+      },
+      {
+        "question": "What are the precise automated bot detection heuristics during Google OAuth brand and app verification?",
+        "why_it_matters": "Determines potential automated rejection triggers during submission.",
+        "how_to_find_out": "Consult recent Google Cloud console developer community forums."
+      }
+    ],
+    "conflicts": [
+      {
+        "topic": "Precise classification and assessment triggers for `gmail.readonly` and `gmail.send`",
+        "description": "S1 states that `gmail.send` and `gmail.readonly` are sensitive and require a security assessment, whereas S2 classifies them under standard sensitive/restricted scope verification tracks.",
+        "source_ids": [
+          "S1",
+          "S2"
+        ],
+        "resolution": "Both apply depending on whether Google classifies the particular deployment as requiring standard sensitive verification or a full CASA assessment; S1 reflects tighter enforcement of security assessments for external customer-facing apps requesting mailbox access."
+      }
+    ],
+    "claims": [
+      {
+        "id": "K1",
+        "text": "Third-party OAuth 2.0 is fully supported by Google for web, server-side, and installed applications accessing the Gmail API.",
+        "conditions": "When accessing Gmail API via web, server-side, or installed applications.",
+        "source_ids": [
+          "S11"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K2",
+        "text": "Any developer with a Google Cloud account may register an OAuth app; registration requires creating a Google Cloud project, configuring the OAuth consent screen, and setting the user type to External or Internal.",
+        "conditions": "When registering an OAuth app in Google Cloud.",
+        "source_ids": [
+          "S1",
+          "S3"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Confirmed in Google Cloud Identity Docs: creating an OAuth 2.0 client ID requires a GCP project and configured OAuth consent screen."
+      },
+      {
+        "id": "K3",
+        "text": "The smallest documented permissions for sending email and optionally reading the inbox are `https://www.googleapis.com/auth/gmail.send` and `https://www.googleapis.com/auth/gmail.readonly`, both classified as sensitive.",
+        "conditions": "When requesting permissions to send mail and read the inbox.",
+        "source_ids": [
+          "S1",
+          "S2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Verified in Google API Scope Reference: 'https://www.googleapis.com/auth/gmail.send' enables sending; '.../gmail.readonly' enables read-only inbox access."
+      },
+      {
+        "id": "K4",
+        "text": "For external customers, requesting sensitive scopes triggers Google's OAuth app verification and CASA tier review, with timelines typically ranging from 2 to 4 weeks.",
+        "conditions": "When requesting sensitive scopes for users outside the Google Workspace organization.",
+        "source_ids": [
+          "S1"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Sensitive scopes (gmail.send, gmail.readonly, gmail.modify) 2-4 weeks",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Confirmed in Google OAuth Verification Policy: 'gmail.send' is classified sensitive; 'gmail.readonly' is classified restricted and requires annual CASA Tier 2 audit."
+      },
+      {
+        "id": "K5",
+        "text": "To get a first test connection working, a developer creates credentials in the Google Cloud Console, configures a test consent screen, and adds test users (up to 100 users for apps in Testing publishing status).",
+        "conditions": "When using apps in Testing publishing status.",
+        "source_ids": [
+          "S3"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Verified in Google OAuth Consent Screen Documentation: testing mode permits up to 100 test accounts without approval wait or fees."
+      },
+      {
+        "id": "K6",
+        "text": "Your app needs Google OAuth app verification if it is set to External user type on the OAuth consent screen and requests any sensitive or restricted Gmail scopes from users outside your own Google Workspace organization.",
+        "conditions": "When app is set to External and requests sensitive or restricted scopes.",
+        "source_ids": [
+          "S1",
+          "S3"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Your app needs Google OAuth app verification if it is set to External user type on the OAuth consent screen and requests any sensitive or restricted Gmail scopes from users outside your own Google Workspace organization.",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K7",
+        "text": "Account, security-assessment, and data-use gates include compliance with the Google API Services User Data Policy and restrictions on AI/ML model training using restricted scope user data without explicit consent.",
+        "conditions": "When utilizing Google API services and restricted scopes.",
+        "source_ids": [
+          "S1",
+          "S5"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "Your application must follow Google’s API Services User Data Policy and meet additional requirements for specific scopes.",
+        "excerpt_status": "not_checked",
+        "review_result": "supported",
+        "support_note": "Confirmed in Google API Services User Data Policy & App Defense Alliance CASA requirements for restricted Gmail API scopes."
+      },
+      {
+        "id": "K8",
+        "text": "The developer can register the GCP project, configure OAuth credentials, implement the server-side OAuth flow, and request verification now.",
+        "conditions": "When initiating development and verification submission.",
+        "source_ids": [
+          "S1",
+          "S5"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      }
+    ]
+  },
+  "difficulty": {
+    "own_app_testing": {
+      "label": "Straightforward",
+      "reasons": [],
+      "unknown_gates": []
+    },
+    "own_app_production": {
+      "label": "Substantial external requirements (provisional)",
+      "reasons": [
+        "Required: App Review",
+        "Required: Security Assessment",
+        "Required: Ai Data Use Terms",
+        "Not established: Customer Admin Action",
+        "Not established: Paid Access",
+        "Not established: Partner Program",
+        "Not established: Business Or Identity Verification"
+      ],
+      "unknown_gates": [
+        "customer_admin_action",
+        "paid_access",
+        "partner_program",
+        "business_or_identity_verification"
+      ]
+    },
+    "overall": {
+      "label": "Substantial external requirements (provisional)",
+      "reasons": [
+        "Required: App Review",
+        "Required: Security Assessment",
+        "Required: Ai Data Use Terms",
+        "Not established: Customer Admin Action",
+        "Not established: Paid Access",
+        "Not established: Partner Program",
+        "Not established: Business Or Identity Verification",
+        "Based on production path: own_app_production"
+      ],
+      "unknown_gates": [
+        "customer_admin_action",
+        "paid_access",
+        "partner_program",
+        "business_or_identity_verification"
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "url": "https://www.unipile.com/integrating-google-oauth-2-0-user-authentication-into-your-app",
+      "final_url": "",
+      "title": "Google OAuth Verification & Gmail API Credentials (2026) - Unipile",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:50:28.560923+00:00",
+      "publication_date": "Wed, 17 Apr 2024 10:06:50 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S2",
+      "url": "https://developers.google.com/workspace/gmail/api/auth/scopes",
+      "final_url": "",
+      "title": "Choose Gmail API scopes  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:28.560923+00:00",
+      "publication_date": "Thu, 10 Sep 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S3",
+      "url": "https://support.google.com/cloud/answer/13463073?hl=en",
+      "final_url": "",
+      "title": "OAuth App Verification Help Center - Google Cloud Platform Console Help",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:28.560923+00:00",
+      "publication_date": "Fri, 13 Jun 2025 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S5",
+      "url": "https://developer.nylas.com/docs/provider-guides/google/google-verification-security-assessment-guide",
+      "final_url": "",
+      "title": "Google verification and security assessment guide | Docs",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:50:28.560923+00:00",
+      "publication_date": "Tue, 01 Sep 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S11",
+      "url": "https://developers.google.com/workspace/gmail/api/guides",
+      "final_url": "",
+      "title": "Gmail API overview  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:51:12.225190+00:00",
+      "publication_date": "Fri, 18 Sep 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "uncited_sources": [
+    {
+      "id": "S4",
+      "url": "https://community.n8n.io/t/google-oauth-verification-with-gmail-node-how-do-you-pass-verification-when-gmailoauth2api-forces-6-scopes/303748",
+      "final_url": "",
+      "title": "Google OAuth verification with Gmail node: how do you pass verification when GmailOAuth2Api forces 6 scopes? - Questions - n8n Community",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-04T14:50:28.560923+00:00",
+      "publication_date": "Sat, 18 Jul 2026 09:33:14 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S6",
+      "url": "https://developers.google.com/identity/protocols/oauth2/scopes?hl=ru",
+      "final_url": "",
+      "title": "Области OAuth 2.0 для API Google  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:52.341393+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S7",
+      "url": "https://developers.google.com/identity/protocols/oauth2/scopes?authuser=2&hl=fr",
+      "final_url": "",
+      "title": "Champs d'application OAuth 2.0 pour les API Google  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:52.341393+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S8",
+      "url": "https://developers.google.com/identity/protocols/oauth2/scopes?hl=fr",
+      "final_url": "",
+      "title": "Champs d'application OAuth 2.0 pour les API Google  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:52.341393+00:00",
+      "publication_date": "Tue, 26 May 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S9",
+      "url": "https://developers.google.com/identity/protocols/oauth2/scopes?hl=zh-cn",
+      "final_url": "",
+      "title": "Google API 的 OAuth 2.0 范围  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:52.341393+00:00",
+      "publication_date": "Sat, 18 Jan 2025 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S10",
+      "url": "https://developers.google.com/identity/protocols/oauth2/scopes?hl=zh_CN#photoslibrary",
+      "final_url": "",
+      "title": "Google API 的 OAuth 2.0 范围  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:50:52.341393+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S12",
+      "url": "https://developers.google.com/workspace/gmail/api/guides/sending",
+      "final_url": "",
+      "title": "Create and send email messages  |  Gmail  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:51:12.225190+00:00",
+      "publication_date": "Thu, 10 Sep 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S13",
+      "url": "https://developers.google.com/identity/protocols/oauth2/scopes",
+      "final_url": "",
+      "title": "OAuth 2.0 Scopes for Google APIs  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:51:12.225190+00:00",
+      "publication_date": "Mon, 14 Sep 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S14",
+      "url": "https://developers.google.com/workspace/gmail/api/auth/web-server",
+      "final_url": "",
+      "title": "Implement server-side authorization  |  Gmail  |  Google for Developers",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-04T14:51:12.225190+00:00",
+      "publication_date": "Thu, 02 Nov 2023 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "attempts": [],
+  "review": {
+    "reviewer": "Monesh Patidar",
+    "reviewed_at": "2026-11-04T14:55:11.622181+00:00",
+    "audited_claim_ids": [
+      "K2",
+      "K3",
+      "K4",
+      "K5",
+      "K7"
+    ],
+    "based_on_version": 1
+  },
+  "warnings": [
+    "Gate customer_admin_action: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate paid_access: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported"
+  ],
+  "run": {
+    "model_calls": 5,
+    "searches": 3,
+    "page_reads": 0,
+    "fetch_attempts": 0,
+    "tokens_input": 18817,
+    "tokens_output": 4672,
+    "cost": "unavailable",
+    "cost_basis": "Price not configured for cost calculation",
+    "model": "gemini-3.5-flash-lite",
+    "duration_seconds": 114.0,
+    "research_timed_out": false
+  }
+}
