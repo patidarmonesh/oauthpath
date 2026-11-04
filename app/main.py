@@ -28,7 +28,7 @@ from app.config import (
 from app.store import Store
 from app.pipeline import run_pipeline
 from app.render import render_markdown
-from app.schema import JobStatus, GuideRecord
+from app.schema import JobStatus, GuideRecord, GuideStatus
 
 import markdown_it
 
@@ -332,6 +332,8 @@ async def guide_version_markdown(guide_id: str, version: int):
     guide = store.get_guide(guide_id, version)
     if not guide:
         raise HTTPException(404, "Guide not found")
+    if guide.status == GuideStatus.retracted.value:
+        raise HTTPException(410, "This guide version has been withdrawn.")
     md = render_markdown(guide)
     return PlainTextResponse(
         md,
@@ -346,6 +348,8 @@ async def guide_version_page(request: Request, guide_id: str, version: int):
     guide = store.get_guide(guide_id, version)
     if not guide:
         raise HTTPException(404, "Guide not found")
+    if guide.status == GuideStatus.retracted.value:
+        raise HTTPException(410, "This guide version has been withdrawn.")
 
     reviewed = store.get_latest_reviewed(guide_id)
     reviewed_version = reviewed.version if reviewed and reviewed.version != version else None
@@ -367,6 +371,8 @@ async def guide_version_json(guide_id: str, version: int):
     guide = store.get_guide(guide_id, version)
     if not guide:
         raise HTTPException(404, "Guide not found")
+    if guide.status == GuideStatus.retracted.value:
+        raise HTTPException(410, "This guide version has been withdrawn.")
     return JSONResponse(guide.model_dump())
 
 

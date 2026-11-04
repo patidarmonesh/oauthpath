@@ -631,6 +631,62 @@ async def run_research_gemini(
 
         if not resp.function_calls:
             findings_text = resp.text or ""
+            # Evidence enforcement: if no pages were actually read but searches ran,
+            # attempt a bounded verification pass on the best provider-domain source.
+            # This prevents snippet-only findings from silently becoming the final output.
+            remaining_now = deadline - time.time()
+            if (
+                total_fetches == 0
+                and total_searches > 0
+                and remaining_now > RESEARCH_WRAPUP_BUFFER + 10
+                and total_fetches < MAX_FETCHES
+            ):
+                # Pick the best provider-domain source available
+                provider_sources = [s for s in sources if s.provider_domain and s.url.startswith("https://")]
+                target_source = provider_sources[0] if provider_sources else (sources[0] if sources else None)
+                if target_source and target_source.retrieval_status == "search_snippet_only":
+                    if on_event:
+                        on_event(f"Evidence check: reading {target_source.url}")
+                    total_fetches += 1
+                    try:
+                        success_map, failure_map = await web_tools.extract([target_source.url])
+                        if target_source.url in success_map:
+                            txt = success_map[target_source.url]
+                            target_source.kind = "fetched_page"
+                            target_source.retrieval_status = "read"
+                            page_texts[target_source.id] = txt
+                            # Inject the page text and ask the model to refine with it
+                            contents.append(types.Content(
+                                role="user",
+                                parts=[types.Part.from_text(
+                                    text=f"[Evidence verification] Content of {target_source.url}:\n\n{txt[:8000]}\n\n"
+                                         f"Update your findings if this primary source adds or contradicts anything."
+                                )],
+                            ))
+                            call_timeout_ev = max(0.01, deadline - time.time() - RESEARCH_WRAPUP_BUFFER)
+                            try:
+                                resp_ev, usage_ev = await generate(
+                                    contents=contents,
+                                    system=system_prompt,
+                                    tool_mode="NONE",
+                                    timeout_s=call_timeout_ev,
+                                    max_output_tokens=4096,
+                                )
+                                model_calls += 1
+                                total_input_tokens += usage_ev.get("prompt_token_count", 0)
+                                total_output_tokens += usage_ev.get("candidates_token_count", 0)
+                                findings_text = resp_ev.text or findings_text
+                            except asyncio.CancelledError:
+                                raise
+                            except Exception:
+                                pass  # keep existing findings_text on failure
+                        else:
+                            target_source.retrieval_status = "failed"
+                            target_source.title = f"Failed fetch ({failure_map.get(target_source.url, 'unknown')[:50]})"
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        pass  # search evidence unavailable; keep findings_text
             break
 
         parts = []
