@@ -2,6 +2,10 @@
 
 OAuthPath helps developers plan the work between registering a provider OAuth app, connecting a first test user and launching to external customers. Enter an app name or website, describe the feature and choose an audience. The resulting guide identifies the next action, who owns it, expected effort, approval dependencies and supporting sources. Each saved version has a shareable page and a Markdown export.
 
+- **Live working experience:** https://oauthpath.onrender.com
+- **Source repository:** https://github.com/patidarmonesh/oauthpath
+- **Sample live guide (Linear):** https://oauthpath.onrender.com/guides/linear-84194572/versions/1
+
 ## Run locally
 
 Use Python 3.10 or later. From the repository root on Windows:
