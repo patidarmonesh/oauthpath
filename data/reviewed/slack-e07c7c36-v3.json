@@ -390,9 +390,10 @@
           {
             "kind": "app_review",
             "state": "required",
-            "note": "Commercial distribution at scale requires submission and approval for listing in the Slack Marketplace.",
+            "note": "Slack Marketplace review requires meeting all developer policies and maintaining at least 10 active workspace installations throughout the review period.",
             "claim_ids": [
-              "K4"
+              "K4",
+              "K11"
             ]
           },
           {
@@ -448,6 +449,13 @@
               "K7",
               "K9"
             ]
+          },
+          {
+            "text": "At least 10 active workspace installations maintained throughout review",
+            "owner": "you",
+            "claim_ids": [
+              "K11"
+            ]
           }
         ],
         "limits": [
@@ -487,14 +495,14 @@
           },
           {
             "id": "submit_marketplace",
-            "title": "Submit Application to Slack Marketplace Review",
-            "instructions": "Complete the Marketplace submission form in the Slack App Management Dashboard and submit for review.",
+            "title": "Verify 10 Active Workspace Installs & Submit to Marketplace",
+            "instructions": "Verify that your app has at least 10 active workspace installations and maintains this threshold throughout the review period, as required by the official Slack notice. Then complete the Marketplace submission form in the Slack App Management Dashboard and submit for review.",
             "owner": "you",
             "step_dependencies": [
               "compliance_audit"
             ],
             "success_condition": "App submission submitted successfully to Slack review team.",
-            "action_url": "https://api.slack.com/slack-marketplace/review-guide",
+            "action_url": "https://docs.slack.dev/changelog/2026/09/01/slack-marketplace-install-requirement/",
             "effort": {
               "known": true,
               "low": 1,
@@ -509,7 +517,8 @@
             },
             "claim_ids": [
               "K4",
-              "K6"
+              "K6",
+              "K11"
             ]
           },
           {
@@ -858,6 +867,20 @@
         "excerpt_status": "not_checked",
         "review_result": "not_reviewed",
         "support_note": ""
+      },
+      {
+        "id": "K11",
+        "text": "Slack Marketplace submission requires an app to have at least 10 active workspace installations and maintain this threshold throughout the review process.",
+        "conditions": "App submission to the public Slack Marketplace",
+        "source_ids": [
+          "S13"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "To be eligible for the Slack Marketplace, an app must have at least 10 active workspace installations, and maintain this threshold throughout the review period.",
+        "excerpt_status": "verified",
+        "review_result": "supported",
+        "support_note": "Verified against official Slack changelog notice dated 2026-09-01."
       }
     ]
   },
@@ -1060,6 +1083,20 @@
       "publication_date": null,
       "retrieval_status": "reference_only",
       "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S13",
+      "url": "https://docs.slack.dev/changelog/2026/09/01/slack-marketplace-install-requirement/",
+      "final_url": "",
+      "title": "Slack Marketplace install requirement update",
+      "kind": "fetched_page",
+      "provider_domain": false,
+      "provider_domain_status": "unknown",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "To be eligible for the Slack Marketplace, an app must have at least 10 active workspace installations, and maintain this threshold throughout the review period.",
       "content_hash": ""
     }
   ],

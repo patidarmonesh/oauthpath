@@ -173,7 +173,7 @@
           {
             "kind": "security_assessment",
             "state": "required",
-            "note": "Sensitive scopes require security assessments like CASA tier reviews.",
+            "note": "Restricted scopes like gmail.readonly require an annual Cloud Application Security Assessment (CASA Tier 2) by an authorized third-party assessor. Sensitive-only scopes like gmail.send require standard Google OAuth verification.",
             "claim_ids": [
               "K4",
               "K6",
@@ -235,11 +235,11 @@
           {
             "id": "step_prod_setup",
             "title": "Configure Production OAuth and Submit for Verification",
-            "instructions": "Implement server-side authorization flow, configure production OAuth client credentials, and submit the app for Google OAuth verification and security assessment.",
+            "instructions": "Implement server-side authorization flow, configure production OAuth client credentials, and submit the app for Google OAuth verification. If requesting restricted scopes (gmail.readonly), complete the third-party CASA Tier 2 security assessment.",
             "owner": "you",
             "step_dependencies": [],
             "success_condition": "Verification and security assessment submission are completed.",
-            "action_url": "https://console.cloud.google.com/",
+            "action_url": "https://developers.google.com/workspace/gmail/api/auth/scopes",
             "effort": {
               "known": true,
               "low": 2,
