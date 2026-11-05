@@ -236,7 +236,7 @@
           {
             "id": "step_prod_setup",
             "title": "Configure Production OAuth and Submit for Verification",
-            "instructions": "Implement server-side authorization flow and configure production OAuth credentials. If requesting only gmail.send (sensitive), submit for standard Google OAuth verification (2-3 weeks). If requesting gmail.readonly (restricted) for server-side processing, complete the third-party CASA Tier 2 security assessment (4-8+ weeks).",
+            "instructions": "Implement server-side authorization flow and configure production OAuth credentials. Google states verification takes several weeks. As planning estimates: 2-3 weeks for standard sensitive verification (gmail.send); 4-8+ weeks if restricted inbox reading (gmail.readonly) requires third-party CASA Tier 2 security assessment.",
             "owner": "you",
             "step_dependencies": [],
             "success_condition": "Verification and security assessment submission are completed.",
@@ -280,7 +280,7 @@
           "high": 56,
           "unit": "calendar_days",
           "basis": "author_estimate",
-          "explanation": "Standard sensitive scope verification (gmail.send) takes 2 to 3 weeks. If inbox reading (gmail.readonly) is included, the third-party CASA Tier 2 security assessment extends total waiting time to 4 to 8+ weeks.",
+          "explanation": "Google notes verification takes several weeks. Planning estimates: 2 to 3 weeks for sensitive scope (gmail.send) verification; 4 to 8+ weeks when restricted scope (gmail.readonly) requires third-party CASA Tier 2 assessment.",
           "claim_ids": [
             "K4"
           ]
@@ -317,7 +317,7 @@
       {
         "trigger": "Requesting https://www.googleapis.com/auth/gmail.send for external customers without Google OAuth app verification",
         "consequence": "Unverified app consent warning displayed to external users, with access capped at 100 test users.",
-        "resolution": "Submit the app for standard Google OAuth verification with a YouTube consent demo video, privacy policy, and verified domain (typically 2-3 weeks).",
+        "resolution": "Submit the app for standard Google OAuth verification with a YouTube consent demo video, privacy policy, and verified domain (planning estimate: 2-3 weeks).",
         "owner": "you",
         "claim_ids": [
           "K3",
@@ -328,7 +328,7 @@
       {
         "trigger": "Requesting https://www.googleapis.com/auth/gmail.readonly for external customers when handling email data on servers",
         "consequence": "App blocked from production until an authorized third-party security lab completes an annual CASA Tier 2 security assessment.",
-        "resolution": "If inbox reading is optional, omit gmail.readonly to avoid restricted scope requirements. If required, complete annual CASA Tier 2 assessment (4-8+ weeks and assessor fee).",
+        "resolution": "If inbox reading is optional, omit gmail.readonly to avoid restricted scope requirements. If required, complete annual CASA Tier 2 assessment (planning estimate: 4-8+ weeks and assessor fee).",
         "owner": "you",
         "claim_ids": [
           "K3",
@@ -417,17 +417,18 @@
       },
       {
         "id": "K4",
-        "text": "For external customers, send-only access (gmail.send) requires standard Google OAuth verification (2-3 weeks). Storing or processing restricted data on servers (gmail.readonly) requires an annual Cloud Application Security Assessment (CASA Tier 2) by an authorized third-party assessor (4-8+ weeks).",
+        "text": "For external customers, Google states that verification takes several weeks. As planning estimates: standard send-only verification (gmail.send) takes 2-3 weeks, whereas server-side handling of restricted data (gmail.readonly) requires a third-party CASA Tier 2 security assessment taking 4-8+ weeks.",
         "conditions": "When requesting sensitive scopes for users outside the Google Workspace organization.",
         "source_ids": [
-          "S1"
+          "S2",
+          "S14"
         ],
         "attempt_ids": [],
-        "basis": "documented",
-        "excerpt": "Sensitive scopes (gmail.send, gmail.readonly, gmail.modify) 2-4 weeks",
+        "basis": "estimated",
+        "excerpt": "",
         "excerpt_status": "not_checked",
         "review_result": "not_reviewed",
-        "support_note": ""
+        "support_note": "Google documentation broadly states verification takes several weeks; specific 2-3 week and 4-8+ week durations are planning estimates for sensitive review and CASA Tier 2 assessment respectively."
       },
       {
         "id": "K5",
@@ -604,6 +605,20 @@
       "retrieval_status": "search_snippet_only",
       "excerpt": "",
       "content_hash": ""
+    },
+    {
+      "id": "S14",
+      "url": "https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification",
+      "final_url": "",
+      "title": "Google Restricted Scope Verification Guide",
+      "kind": "fetched_page",
+      "provider_domain": false,
+      "provider_domain_status": "unknown",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "reference_only",
+      "excerpt": "",
+      "content_hash": ""
     }
   ],
   "uncited_sources": [
@@ -742,15 +757,10 @@
     "based_on_version": null
   },
   "warnings": [
-    "Path own_app_production: added unknown gate 'customer_admin_action'",
-    "Path own_app_production: added unknown gate 'paid_access'",
-    "Path own_app_production: added unknown gate 'partner_program'",
-    "Path own_app_production: added unknown gate 'business_or_identity_verification'",
     "Gate customer_admin_action: all supporting claims are 'unknown' — assertion is weakly supported",
     "Gate paid_access: all supporting claims are 'unknown' — assertion is weakly supported",
     "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
-    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported",
-    "Moved 9 uncited source(s) to uncited_sources"
+    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported"
   ],
   "run": {
     "model_calls": 5,
