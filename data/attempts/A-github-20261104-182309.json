@@ -1,0 +1,14 @@
+{
+  "id": "A-github-20261104-182309",
+  "actor": "assisted",
+  "provider": "github",
+  "scenario": "Test connection via custom or managed auth for oauthpath-test-1793816589",
+  "action": "Create auth config and connect test user for github",
+  "start_time": "2026-11-04T18:23:09.776599+00:00",
+  "end_time": "2026-11-04T18:25:33.310349+00:00",
+  "environment": "Local test account",
+  "observed_result": "Connected account active: ID ca_mRIPTDQRWMQm",
+  "status": "succeeded",
+  "artifact_path": null,
+  "limitation": "Proves one test-user connection; not refresh behaviour, org access or production approval"
+}

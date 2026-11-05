@@ -119,6 +119,9 @@ def main():
         if not base:
             print(f"ERROR: Base guide version {base_v} not found in store")
             sys.exit(1)
+        if base.status == GuideStatus.retracted.value:
+            print(f"ERROR: Base guide version {base_v} is retracted and cannot be promoted")
+            sys.exit(1)
         if base.provider.name.lower() != guide.provider.name.lower():
             print(f"ERROR: Provider name mismatch between base ({base.provider.name}) and review ({guide.provider.name})")
             sys.exit(1)
@@ -161,6 +164,9 @@ def main():
     if not guide:
         print(f"ERROR: Guide {args.guide_id} v{args.version} not found")
         sys.exit(1)
+    if guide.status == GuideStatus.retracted.value:
+        print(f"ERROR: Guide {args.guide_id} v{args.version} is retracted and cannot be promoted")
+        sys.exit(1)
 
     if args.export_only:
         out_path = Path(f"data/review-copy-{args.guide_id}-v{args.version}.json")
@@ -178,12 +184,24 @@ def main():
     audited_ids = [c.strip() for c in args.claims.split(",")] if args.claims else []
 
     # Handle --pass-gate or --fail-gate
+    if args.pass_gate and args.fail_gate:
+        print("ERROR: --pass-gate and --fail-gate are mutually exclusive")
+        sys.exit(1)
+
     if args.pass_gate or args.fail_gate:
+        if args.source and args.attempt_id:
+            print("ERROR: --source and --attempt-id are mutually exclusive for gate verification")
+            sys.exit(1)
         if not args.source and not args.attempt_id:
             print("ERROR: --source (URL or S-id) or --attempt-id is required when using --pass-gate or --fail-gate")
             sys.exit(1)
 
         gate_kind = args.pass_gate or args.fail_gate
+        from app.validation import VALID_GATE_KINDS
+        if gate_kind not in VALID_GATE_KINDS:
+            print(f"ERROR: Invalid gate kind '{gate_kind}'. Must be one of: {', '.join(sorted(VALID_GATE_KINDS))}")
+            sys.exit(1)
+
         new_state = "not_required" if args.pass_gate else "required"
         cid = f"REV-{gate_kind.upper()[:8]}"
         claim_text = f"Reviewer verified gate '{gate_kind}' state is {new_state}"

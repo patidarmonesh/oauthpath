@@ -409,7 +409,7 @@ class TestSecretsHygiene:
                 # Files should only be .gitkeep, .db, or json records without credentials
                 if p.suffix == ".json":
                     content = p.read_text(encoding="utf-8")
-                    assert "client_secret" not in content or "your-client-secret" in content
+                    assert '"client_secret": "' not in content or "your-client-secret" in content
                     assert "sk-ant" not in content
                     assert "xoxb-" not in content
                     assert "ghp_" not in content

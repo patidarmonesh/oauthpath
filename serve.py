@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def get_port() -> int:
     """Get the port from environment (PaaS sets PORT)."""
-    return int(os.getenv("PORT", "8000"))
+    return int(os.getenv("PORT") or "8000")
 
 
 if __name__ == "__main__":

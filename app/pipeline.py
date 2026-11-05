@@ -114,7 +114,8 @@ async def run_pipeline(
     Returns (guide_record, error_message).
     """
     start_time = time.time()
-    deadline = start_time + JOB_TIMEOUT_SECONDS
+    start_mono = time.monotonic()
+    deadline = start_mono + JOB_TIMEOUT_SECONDS
 
     def event(msg: str):
         if on_event:
@@ -159,7 +160,7 @@ async def run_pipeline(
     try:
         composio_info, composio_sources = await asyncio.wait_for(
             lookup_composio_toolkit(app_name, provider.name, provider.official_domain),
-            timeout=max(1.0, min(15.0, deadline - time.time()))
+            timeout=max(1.0, min(15.0, deadline - time.monotonic()))
         )
     except (asyncio.TimeoutError, Exception):
         composio_info = ComposioInfo(
@@ -174,7 +175,7 @@ async def run_pipeline(
 
     # 5. Research
     event("Starting research phase")
-    research_deadline = start_time + (JOB_TIMEOUT_SECONDS * 0.55)
+    research_deadline = start_mono + (JOB_TIMEOUT_SECONDS * 0.55)
 
     findings, research_sources, research_stats, page_texts = await run_research(
         provider=provider,
@@ -186,7 +187,11 @@ async def run_pipeline(
 
     if "error" in research_stats:
         if not findings.strip():
-            return None, f"Research failed: {research_stats['error']}"
+            err_text = str(research_stats["error"])
+            category = research_stats.get("error_category") or (
+                "timeout" if "timed out" in err_text.lower() else "unknown"
+            )
+            return None, f"Research failed [{category}]: {err_text}"
         # If findings exist, keep them, set research_timed_out=True, and save guide as partial
         research_stats["research_timed_out"] = True
 
@@ -232,7 +237,23 @@ async def run_pipeline(
     )
 
     if guide_content is None:
-        return None, f"Synthesis failed: {synthesis_stats.get('error', 'unknown error')}"
+        err_text = str(synthesis_stats.get("error", "unknown error"))
+        category = synthesis_stats.get("error_category")
+        if not category:
+            low = err_text.lower()
+            if "insufficient time" in low or "timed out" in low:
+                category = "timeout"
+            elif "quota" in low or "rate limit" in low or "429" in low:
+                category = "rate_limit"
+            elif "unavailable" in low or "503" in low:
+                category = "unavailable"
+            elif "api key" in low or "auth" in low or "401" in low or "403" in low:
+                category = "auth"
+            elif "schema" in low or "repair" in low or "json" in low or "truncated" in low:
+                category = "invalid_output"
+            else:
+                category = "unknown"
+        return None, f"Synthesis failed [{category}]: {err_text}"
 
     # 7. Assemble and validate
     event("Validating guide")

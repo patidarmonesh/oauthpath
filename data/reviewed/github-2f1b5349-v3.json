@@ -1,0 +1,1267 @@
+{
+  "schema_version": "2",
+  "prompt_version": "1",
+  "id": "github-2f1b5349",
+  "version": 3,
+  "created_at": "2026-11-05T11:03:21.841223+00:00",
+  "status": "draft",
+  "cache_key": "github|github.com|read and create issues for users' repositories|external customers|server-side|sv2|pv1",
+  "provider": {
+    "name": "GitHub",
+    "official_domain": "github.com",
+    "identity_status": "resolved"
+  },
+  "scenario": {
+    "feature": "Read and create issues for users' repositories",
+    "audience": "external customers",
+    "deployment": "server-side",
+    "assumptions": []
+  },
+  "composio": {
+    "toolkit_slug": "github",
+    "lookup_status": "matched",
+    "selected_auth_method": "OAUTH2",
+    "managed_oauth": "available",
+    "required_config_fields": [
+      "client_id",
+      "client_secret"
+    ],
+    "required_connect_fields": [],
+    "auth_guide_url": null,
+    "checked_at": "2026-11-05T11:01:11.485497+00:00",
+    "source_id": "C1"
+  },
+  "guide": {
+    "oauth_support": "confirmed",
+    "summary": [
+      {
+        "text": "Unlisted GitHub Apps and legacy OAuth Apps can be deployed directly to external customers without requiring prior app review or security assessments from GitHub.",
+        "claim_ids": [
+          "K5",
+          "K6"
+        ]
+      },
+      {
+        "text": "To read and create repository issues, GitHub Apps use fine-grained repository permissions ('issues' read/write), whereas legacy OAuth Apps require broader repository scopes ('repo' or 'public_repo').",
+        "claim_ids": [
+          "K4"
+        ]
+      },
+      {
+        "text": "The primary launch dependency is customer consent: external end-users or repository administrators must authorize or install the application to grant issue access.",
+        "claim_ids": [
+          "K7"
+        ]
+      },
+      {
+        "text": "Composio managed OAuth is available as an alternative authentication strategy that can also suit production deployment.",
+        "claim_ids": [
+          "K8"
+        ]
+      }
+    ],
+    "next_action": {
+      "instruction": "Register a GitHub App or OAuth App under your personal or organization account to obtain client credentials and set issue access permissions.",
+      "owner": "you",
+      "link_or_artifact": "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
+      "success_condition": "GitHub App created with valid Client ID, Client Secret, and configured redirect URI.",
+      "claim_ids": [
+        "K3",
+        "K4"
+      ]
+    },
+    "recommended_path_id": "own_app_production",
+    "paths": [
+      {
+        "id": "composio_managed",
+        "name": "Composio-managed OAuth",
+        "applicability": "When Composio's consent branding, default scopes, and shared quota fit your use case",
+        "gates": [],
+        "prerequisites": [
+          {
+            "text": "A Composio account and API key",
+            "owner": "you",
+            "claim_ids": [
+              "KC1"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Composio's name on the consent screen",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          },
+          {
+            "text": "Composio's default scopes (may not cover your needs)",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          },
+          {
+            "text": "Quota shared across Composio users",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          },
+          {
+            "text": "Trigger polling minimum (see Composio docs for current value)",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "managed_connect",
+            "title": "Create managed auth config and connect",
+            "instructions": "Create a managed auth config for toolkit `github`, connect a test user, and confirm ACTIVE status server-side. No registration wait for your own provider OAuth app.",
+            "owner": "agent_prepares_you_submit",
+            "step_dependencies": [],
+            "success_condition": "Connected account status is ACTIVE",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Assumes eligible Composio account",
+              "claim_ids": []
+            },
+            "claim_ids": [
+              "KC1",
+              "KC3"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 5,
+          "high": 15,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Assumes eligible Composio account",
+          "claim_ids": []
+        },
+        "waiting": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "not_applicable",
+          "basis": "unknown",
+          "explanation": "",
+          "claim_ids": []
+        },
+        "costs": [],
+        "claim_ids": [
+          "KC1",
+          "KC3"
+        ]
+      },
+      {
+        "id": "own_app_testing",
+        "name": "Own App Testing Mode",
+        "applicability": "Internal developer testing and sandbox validation using developer-controlled GitHub accounts.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "not_required",
+            "note": "No app review is required for internal testing of unlisted apps.",
+            "claim_ids": [
+              "K5"
+            ]
+          },
+          {
+            "kind": "customer_admin_action",
+            "state": "not_required",
+            "note": "Testing uses developer-owned accounts and repositories.",
+            "claim_ids": [
+              "K3"
+            ]
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "Access to a personal or organization GitHub account.",
+            "owner": "you",
+            "claim_ids": [
+              "K3"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Limit of 100 registered apps per GitHub account.",
+            "owner": "you",
+            "claim_ids": [
+              "K3"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "test_register_app",
+            "title": "Register Test GitHub App",
+            "instructions": "Register a test GitHub App under your GitHub account and specify your test callback URL.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "App registered and client credentials generated.",
+            "action_url": "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
+            "effort": {
+              "known": true,
+              "low": 10,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Standard developer setup time in GitHub developer settings.",
+              "claim_ids": [
+                "K3"
+              ]
+            },
+            "claim_ids": [
+              "K3"
+            ]
+          },
+          {
+            "id": "test_configure_permissions",
+            "title": "Configure Issue Permissions",
+            "instructions": "Set fine-grained repository permissions for 'Issues' to Read & Write (or select broad 'repo' scope for legacy OAuth Apps).",
+            "owner": "you",
+            "step_dependencies": [
+              "test_register_app"
+            ],
+            "success_condition": "Repository issues permission saved.",
+            "action_url": "https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 10,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Selecting issue permission options in app settings.",
+              "claim_ids": [
+                "K4"
+              ]
+            },
+            "claim_ids": [
+              "K4"
+            ]
+          },
+          {
+            "id": "test_authorize",
+            "title": "Authorize Test Account",
+            "instructions": "Install the test app or complete the OAuth web flow on your test repository to verify access token issuance and issue creation.",
+            "owner": "you",
+            "step_dependencies": [
+              "test_configure_permissions"
+            ],
+            "success_condition": "Test issue successfully created in test repository.",
+            "action_url": "https://docs.github.com/en/apps/using-github-apps/authorizing-github-apps",
+            "effort": {
+              "known": true,
+              "low": 10,
+              "high": 20,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Executing consent flow and verifying API issue creation.",
+              "claim_ids": [
+                "K7"
+              ]
+            },
+            "claim_ids": [
+              "K7"
+            ]
+          },
+          {
+            "id": "composio_wiring",
+            "title": "Connect through Composio",
+            "instructions": "Create a Composio auth config for toolkit `github` with your client ID and secret (custom auth, OAUTH2, oauth_redirect_uri = https://backend.composio.dev/api/v3/toolkits/auth/callback). Create a Connect Link for a test user, complete consent, and confirm an ACTIVE connected account via the API.",
+            "owner": "agent_prepares_you_submit",
+            "step_dependencies": [],
+            "success_condition": "Connected account status is ACTIVE via the Composio API",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 20,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Assumes the provider app already exists",
+              "claim_ids": []
+            },
+            "claim_ids": [
+              "KC1",
+              "KC2"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 25,
+          "high": 45,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Estimated total setup and verification time for developer sandbox testing.",
+          "claim_ids": [
+            "K3",
+            "K4",
+            "K7"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 0,
+          "high": 0,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Immediate availability without provider review.",
+          "claim_ids": [
+            "K5"
+          ]
+        },
+        "costs": [],
+        "claim_ids": [
+          "K3",
+          "K4",
+          "K5",
+          "K7"
+        ]
+      },
+      {
+        "id": "own_app_production",
+        "name": "Own App Production Deployment",
+        "applicability": "Deploying issue reading and creation capabilities to external customer accounts.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "not_required",
+            "note": "Direct distribution of unlisted GitHub Apps requires no GitHub approval.",
+            "claim_ids": [
+              "K5"
+            ]
+          },
+          {
+            "kind": "security_assessment",
+            "state": "not_required",
+            "note": "GitHub does not inspect or audit third-party code for unlisted apps.",
+            "claim_ids": [
+              "K6"
+            ]
+          },
+          {
+            "kind": "business_or_identity_verification",
+            "state": "not_required",
+            "note": "Identity verification is required only for listing paid apps on GitHub Marketplace.",
+            "claim_ids": [
+              "K5"
+            ]
+          },
+          {
+            "kind": "customer_admin_action",
+            "state": "required",
+            "note": "External customers or repository admins must grant consent and select target repositories.",
+            "claim_ids": [
+              "K7"
+            ]
+          },
+          {
+            "kind": "paid_access",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "partner_program",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "GitHub account or organization to host the production app registration.",
+            "owner": "you",
+            "claim_ids": [
+              "K3"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Maximum 100 app registrations per host account.",
+            "owner": "you",
+            "claim_ids": [
+              "K3"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "prod_register_app",
+            "title": "Verify requirement: Register Production GitHub App",
+            "instructions": "Verify requirement: Register a GitHub App under your production organization. Set Callback URL to your production endpoint (or https://backend.composio.dev/api/v3/toolkits/auth/callback if configuring custom auth in Composio).",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "Production App ID, Client ID, and Client Secret obtained.",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 10,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Registering production app details.",
+              "claim_ids": [
+                "K3"
+              ]
+            },
+            "claim_ids": [
+              "K3"
+            ]
+          },
+          {
+            "id": "prod_configure_permissions",
+            "title": "Set Repository Issue Permissions",
+            "instructions": "Configure fine-grained repository permissions: Issues -> Read & Write.",
+            "owner": "you",
+            "step_dependencies": [
+              "prod_register_app"
+            ],
+            "success_condition": "Issues Read & Write permissions saved on GitHub App settings.",
+            "action_url": "https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 10,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Setting issue permissions in developer settings.",
+              "claim_ids": [
+                "K4"
+              ]
+            },
+            "claim_ids": [
+              "K4"
+            ]
+          },
+          {
+            "id": "prod_customer_authorization",
+            "title": "Customer OAuth Consent & App Installation",
+            "instructions": "Direct external users to complete the OAuth authorization flow or app installation, granting access to selected repositories.",
+            "owner": "your_customer_admin",
+            "step_dependencies": [
+              "prod_configure_permissions"
+            ],
+            "success_condition": "Customer authorizes app and token is received for repository access.",
+            "action_url": "https://docs.github.com/en/apps/using-github-apps/authorizing-github-apps",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Time required for each customer administrator to grant permissions.",
+              "claim_ids": [
+                "K7"
+              ]
+            },
+            "claim_ids": [
+              "K7"
+            ]
+          },
+          {
+            "id": "own_app_production_composio_wiring",
+            "title": "Connect through Composio",
+            "instructions": "Create a Composio auth config for toolkit `github` with your client ID and secret (custom auth, OAUTH2, oauth_redirect_uri = https://backend.composio.dev/api/v3/toolkits/auth/callback). Create a Connect Link for a test user, complete consent, and confirm an ACTIVE connected account via the API.",
+            "owner": "agent_prepares_you_submit",
+            "step_dependencies": [],
+            "success_condition": "Connected account status is ACTIVE via the Composio API",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 20,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Assumes the provider app already exists",
+              "claim_ids": []
+            },
+            "claim_ids": [
+              "KC1",
+              "KC2"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 20,
+          "high": 40,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Developer configuration effort for production app registration.",
+          "claim_ids": [
+            "K3",
+            "K4"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 0,
+          "high": 0,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "No waiting queue or provider approval process for unlisted apps.",
+          "claim_ids": [
+            "K5"
+          ]
+        },
+        "costs": [],
+        "claim_ids": [
+          "K3",
+          "K4",
+          "K5",
+          "K6",
+          "K7"
+        ]
+      }
+    ],
+    "scopes": [
+      {
+        "scope_string": "issues: write",
+        "purpose": "Fine-grained GitHub App permission to read and create issues in user repositories.",
+        "classification": "granularity_fine",
+        "claim_ids": [
+          "K4"
+        ]
+      },
+      {
+        "scope_string": "repo",
+        "purpose": "Legacy OAuth App scope for full repository access, including reading and writing issues.",
+        "classification": "granularity_broad",
+        "claim_ids": [
+          "K4"
+        ]
+      },
+      {
+        "scope_string": "public_repo",
+        "purpose": "Legacy OAuth App scope for public repository access, including issues.",
+        "classification": "granularity_broad",
+        "claim_ids": [
+          "K4"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "trigger": "Customer repository administrator declines OAuth authorization or app installation",
+        "consequence": "Application cannot access or create issues in customer repositories.",
+        "resolution": "Provide clear onboarding documentation explaining that only issue permissions ('issues: write') are requested.",
+        "owner": "you",
+        "claim_ids": [
+          "K7"
+        ]
+      }
+    ],
+    "agent_assistance": [
+      {
+        "capability": "Draft GitHub App Registration Metadata",
+        "description": "Prepare app name, description, callback URIs, and permission settings for registration."
+      },
+      {
+        "capability": "Generate Authorization URLs",
+        "description": "Construct authorization links for customer administrators to initiate the OAuth flow."
+      }
+    ],
+    "unknowns": [
+      {
+        "question": "Does Composio's managed GitHub OAuth implementation rely on GitHub App user-to-server tokens or legacy OAuth App scopes?",
+        "why_it_matters": "Determines whether customers are prompted for broad repository scope ('repo') or fine-grained issue permissions ('issues: write').",
+        "how_to_find_out": "Check Composio's GitHub integration documentation or authentication settings."
+      }
+    ],
+    "conflicts": [
+      {
+        "topic": "GitHub Apps permissions vs Legacy OAuth Apps scopes",
+        "description": "Legacy OAuth Apps require broad scope strings ('repo' or 'public_repo') which grant full code repository access alongside issues, whereas GitHub Apps support fine-grained permission levels ('issues': read/write) without requiring code access.",
+        "source_ids": [
+          "S10",
+          "S12"
+        ],
+        "resolution": "Use GitHub Apps to limit requested access strictly to repository issues without broad code repository scopes."
+      }
+    ],
+    "claims": [
+      {
+        "id": "K1",
+        "text": "Both GitHub Apps and legacy OAuth Apps use OAuth 2.0 for third-party integrations.",
+        "conditions": "Standard OAuth 2.0 implementation on GitHub",
+        "source_ids": [
+          "S10"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K2",
+        "text": "Personal access tokens are intended for self-access, whereas GitHub Apps should be used for accessing resources on behalf of an organization or for long-lived integrations.",
+        "conditions": "Choosing authentication mechanism for multi-user integrations",
+        "source_ids": [
+          "S2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "To access resources on behalf of an organization, or for long-lived integrations, you should use a GitHub App.",
+        "excerpt_status": "found",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K3",
+        "text": "Any personal account or organization owner can register up to 100 GitHub Apps.",
+        "conditions": "App registration limits",
+        "source_ids": [
+          "S9"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K4",
+        "text": "GitHub Apps allow fine-grained issue permissions ('issues': read/write) without requesting repository code access, whereas legacy OAuth Apps require broad scope strings ('repo' or 'public_repo').",
+        "conditions": "Issue access permission scoping",
+        "source_ids": [
+          "S12"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K5",
+        "text": "Directly distributing an unlisted GitHub App or OAuth App via standard authorization URLs requires no prior review or approval from GitHub, though Marketplace listing of paid plans requires publisher verification.",
+        "conditions": "Direct distribution of unlisted integration apps",
+        "source_ids": [
+          "S16"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K6",
+        "text": "GitHub does not conduct code security audits on third-party integrations; marketplace badges verify organizational identity and administrative controls only.",
+        "conditions": "Security audit policy",
+        "source_ids": [
+          "S20"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K7",
+        "text": "External end-users or repository administrators must complete the OAuth web flow or installation to grant repository issue access.",
+        "conditions": "Customer consent requirement",
+        "source_ids": [
+          "S6"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K8",
+        "text": "Composio provides a managed OAuth toolkit for GitHub supporting OAuth2 authentication.",
+        "conditions": "Composio toolkit availability",
+        "source_ids": [
+          "C1"
+        ],
+        "attempt_ids": [
+          "A-github-20261104-182309"
+        ],
+        "basis": "observed",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "KC1",
+        "text": "Composio toolkit `github` supports OAUTH2 with managed OAuth available",
+        "conditions": "",
+        "source_ids": [
+          "C1"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "KC2",
+        "text": "Composio OAuth redirect URI is https://backend.composio.dev/api/v3/toolkits/auth/callback",
+        "conditions": "",
+        "source_ids": [
+          "C2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "KC3",
+        "text": "Composio managed OAuth apps can remain in production when branding, default scopes, and quotas fit",
+        "conditions": "",
+        "source_ids": [
+          "C3"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      }
+    ]
+  },
+  "difficulty": {
+    "composio_managed": {
+      "label": "Straightforward",
+      "reasons": [],
+      "unknown_gates": []
+    },
+    "own_app_testing": {
+      "label": "Straightforward",
+      "reasons": [],
+      "unknown_gates": []
+    },
+    "own_app_production": {
+      "label": "Requires coordination (provisional)",
+      "reasons": [
+        "Required: Customer Admin Action",
+        "Not established: Paid Access",
+        "Not established: Partner Program"
+      ],
+      "unknown_gates": [
+        "paid_access",
+        "partner_program"
+      ]
+    },
+    "overall": {
+      "label": "Requires coordination (provisional)",
+      "reasons": [
+        "Required: Customer Admin Action",
+        "Not established: Paid Access",
+        "Not established: Partner Program",
+        "Based on production path: own_app_production"
+      ],
+      "unknown_gates": [
+        "paid_access",
+        "partner_program"
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "C1",
+      "url": "https://backend.composio.dev/api/v3/toolkits/github",
+      "final_url": "",
+      "title": "Composio toolkit: github",
+      "kind": "composio_api",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:01:11.485497+00:00",
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S2",
+      "url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+      "final_url": "",
+      "title": "Managing your personal access tokens - GitHub Docs",
+      "kind": "fetched_page",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:23.381465+00:00",
+      "publication_date": "Fri, 03 Oct 2014 00:00:00 GMT",
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S6",
+      "url": "https://docs.github.com/en/apps/using-github-apps/authorizing-github-apps",
+      "final_url": "",
+      "title": "Authorizing GitHub Apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:23.381465+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S9",
+      "url": "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
+      "final_url": "",
+      "title": "Registering a GitHub App - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:31.508101+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S10",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app",
+      "final_url": "",
+      "title": "Creating an OAuth app - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:31.508101+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S12",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/differences-between-github-apps-and-oauth-apps",
+      "final_url": "",
+      "title": "Differences between GitHub Apps and OAuth apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:39.897807+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S16",
+      "url": "https://docs.github.com/en/apps/github-marketplace/github-marketplace-overview/applying-for-publisher-verification-for-your-organization",
+      "final_url": "",
+      "title": "Applying for publisher verification for your organization - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:47.091550+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S20",
+      "url": "https://docs.github.com/en/apps/github-marketplace/github-marketplace-overview/about-marketplace-badges",
+      "final_url": "",
+      "title": "About marketplace badges - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:47.091550+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "C2",
+      "url": "https://docs.composio.dev/docs/authentication/programmatic-auth-configs",
+      "final_url": "",
+      "title": "Composio programmatic auth configs",
+      "kind": "maintainer_reference",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "reference_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "C3",
+      "url": "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+      "final_url": "",
+      "title": "Composio custom app vs managed app",
+      "kind": "maintainer_reference",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "reference_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "uncited_sources": [
+    {
+      "id": "S3",
+      "url": "https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps",
+      "final_url": "",
+      "title": "Permissions required for GitHub Apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:23.381465+00:00",
+      "publication_date": "Tue, 10 Mar 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S4",
+      "url": "https://docs.github.com/en/enterprise-server@3.18/rest/authentication/permissions-required-for-github-apps?apiVersion=2022-11-28",
+      "final_url": "",
+      "title": "Permissions required for GitHub Apps - GitHub Enterprise Server 3.18 Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:23.381465+00:00",
+      "publication_date": "Mon, 28 Nov 2022 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S5",
+      "url": "https://docs.github.com/rest/apps/apps?apiVersion=2026-03-10",
+      "final_url": "",
+      "title": "REST API endpoints for GitHub Apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:23.381465+00:00",
+      "publication_date": "Tue, 10 Mar 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S7",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps",
+      "final_url": "",
+      "title": "Scopes for OAuth apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:31.508101+00:00",
+      "publication_date": "Wed, 01 Jul 2020 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S8",
+      "url": "https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/about-creating-github-apps",
+      "final_url": "",
+      "title": "About creating GitHub Apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:31.508101+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S11",
+      "url": "https://docs.github.com/en/apps/oauth-apps/using-oauth-apps/authorizing-oauth-apps",
+      "final_url": "",
+      "title": "Authorizing OAuth apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:31.508101+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S13",
+      "url": "https://docs.github.com/en/rest/agent-automations/agent-automations",
+      "final_url": "",
+      "title": "REST API endpoints for agent automations - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:39.897807+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S14",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps",
+      "final_url": "",
+      "title": "Authorizing OAuth apps - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:39.897807+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S15",
+      "url": "https://docs.github.com/en/enterprise-server@3.20/rest/oauth-authorizations/oauth-authorizations",
+      "final_url": "",
+      "title": "REST API endpoints for OAuth app authorizations - GitHub Enterprise Server 3.20 Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:39.897807+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S17",
+      "url": "https://docs.github.com/en/apps/github-marketplace/creating-apps-for-github-marketplace/requirements-for-listing-an-app",
+      "final_url": "",
+      "title": "Requirements for listing an app - GitHub Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:47.091550+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S18",
+      "url": "https://docs.github.com/enterprise-cloud@latest/apps/github-marketplace/github-marketplace-overview/about-github-marketplace-for-apps",
+      "final_url": "",
+      "title": "About GitHub Marketplace for apps - GitHub Enterprise Cloud Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:47.091550+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S19",
+      "url": "https://docs.github.com/enterprise-cloud@latest/apps/github-marketplace/listing-an-app-on-github-marketplace/setting-pricing-plans-for-your-listing",
+      "final_url": "",
+      "title": "Setting pricing plans for your listing - GitHub Enterprise Cloud Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:01:47.091550+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S21",
+      "url": "https://github.blog/news-insights/migrating-to-github-apps-code-climate-shares-their-story",
+      "final_url": "",
+      "title": "Migrating to GitHub Apps: Code Climate shares their story - The GitHub Blog",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:01:58.119730+00:00",
+      "publication_date": "Tue, 25 Sep 2018 07:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S22",
+      "url": "https://github.blog/news-insights/company-news/security-alert-stolen-oauth-user-tokens",
+      "final_url": "",
+      "title": "Security alert: Attack campaign involving stolen OAuth user tokens issued to two third-party integrators - The GitHub Blog",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:01:58.119730+00:00",
+      "publication_date": "Fri, 15 Apr 2022 22:35:02 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S23",
+      "url": "https://github.blog/changelog/2026-08-19-multiple-redirect-uris-and-token-refresh-for-oauth-apps",
+      "final_url": "",
+      "title": "Multiple redirect URIs and token refresh for OAuth apps - GitHub Changelog",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:01:58.119730+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S24",
+      "url": "https://github.blog/changelog/2026-08-14-multiple-redirect-uris-and-token-refresh-for-oauth-apps",
+      "final_url": "",
+      "title": "Multiple redirect URIs and token refresh for OAuth apps - GitHub Changelog",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:01:58.119730+00:00",
+      "publication_date": "Fri, 14 Aug 2026 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S25",
+      "url": "https://github.blog/changelog/2020-07-27-oauth-2-0-device-authorization-flow",
+      "final_url": "",
+      "title": "OAuth 2.0 Device Authorization Flow - GitHub Changelog",
+      "kind": "search_result",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:01:58.119730+00:00",
+      "publication_date": "Mon, 27 Jul 2020 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "attempts": [
+    {
+      "id": "A-github-20261104-143709",
+      "actor": "assisted",
+      "provider": "github",
+      "scenario": "Test connection via custom or managed auth for oauthpath-test-1793803029",
+      "action": "Create auth config and connect test user for github",
+      "start_time": "2026-11-04T14:37:09.039725+00:00",
+      "end_time": "2026-11-04T14:37:09.666681+00:00",
+      "environment": "Local test account",
+      "observed_result": "Error querying toolkit auth scheme for 'github': 401 Invalid API key: ck_**Pk7T",
+      "status": "failed",
+      "artifact_path": null,
+      "limitation": "Connection attempt failed during API/SDK execution; credentials or network blocked",
+      "example": false
+    },
+    {
+      "id": "A-github-20261104-173203",
+      "actor": "assisted",
+      "provider": "github",
+      "scenario": "Test connection via custom or managed auth for oauthpath-test-1793813523",
+      "action": "Create auth config and connect test user for github",
+      "start_time": "2026-11-04T17:32:03.412038+00:00",
+      "end_time": "2026-11-04T17:32:04.030350+00:00",
+      "environment": "Local test account",
+      "observed_result": "Error querying toolkit auth scheme for 'github': 401 Invalid API key: ck_**Pk7T",
+      "status": "failed",
+      "artifact_path": null,
+      "limitation": "Connection attempt failed during API/SDK execution; credentials or network blocked",
+      "example": false
+    },
+    {
+      "id": "A-github-20261104-175113",
+      "actor": "assisted",
+      "provider": "github",
+      "scenario": "Test connection via custom or managed auth for oauthpath-test-1793814673",
+      "action": "Create auth config and connect test user for github",
+      "start_time": "2026-11-04T17:51:13.912972+00:00",
+      "end_time": "2026-11-04T17:51:14.564777+00:00",
+      "environment": "Local test account",
+      "observed_result": "Error querying toolkit auth scheme for 'github': 401 Invalid API key: ck_**LEhs",
+      "status": "failed",
+      "artifact_path": null,
+      "limitation": "Connection attempt failed during API/SDK execution; credentials or network blocked",
+      "example": false
+    },
+    {
+      "id": "A-github-20261104-182309",
+      "actor": "assisted",
+      "provider": "github",
+      "scenario": "Test connection via custom or managed auth for oauthpath-test-1793816589",
+      "action": "Create auth config and connect test user for github",
+      "start_time": "2026-11-04T18:23:09.776599+00:00",
+      "end_time": "2026-11-04T18:25:33.310349+00:00",
+      "environment": "Local test account",
+      "observed_result": "Connected account active: ID ca_mRIPTDQRWMQm",
+      "status": "succeeded",
+      "artifact_path": null,
+      "limitation": "Proves one test-user connection; not refresh behaviour, org access or production approval",
+      "example": false
+    }
+  ],
+  "review": {
+    "reviewer": null,
+    "reviewed_at": null,
+    "audited_claim_ids": [],
+    "based_on_version": null
+  },
+  "warnings": [
+    "Path own_app_production: added unknown gate 'paid_access'",
+    "Path own_app_production: added unknown gate 'partner_program'",
+    "Added Composio-managed path based on confirmed toolkit metadata",
+    "Gate paid_access: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Moved 17 uncited source(s) to uncited_sources"
+  ],
+  "run": {
+    "model_calls": 8,
+    "searches": 5,
+    "page_reads": 1,
+    "fetch_attempts": 1,
+    "tokens_input": 50866,
+    "tokens_output": 5791,
+    "cost": "unavailable",
+    "cost_basis": "Price not configured for cost calculation",
+    "model": "gemini-3.6-flash",
+    "duration_seconds": 131.1,
+    "research_timed_out": false
+  },
+  "retraction_reason": null
+}

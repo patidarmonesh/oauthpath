@@ -2,9 +2,9 @@
   "schema_version": "2",
   "prompt_version": "1",
   "id": "gmail-google-b419b8d4",
-  "version": 2,
-  "created_at": "2026-11-04T14:55:11.630268+00:00",
-  "status": "reviewed",
+  "version": 3,
+  "created_at": "2026-11-05T11:26:50.729036+00:00",
+  "status": "draft",
   "cache_key": "gmail (google)|google.com|send email on the user's behalf; optionally read the inbox|external customers|server-side|sv2|pv1",
   "provider": {
     "name": "Gmail (Google)",
@@ -44,7 +44,7 @@
         ]
       },
       {
-        "text": "Sending email and optionally reading the inbox requires the sensitive scopes `https://www.googleapis.com/auth/gmail.send` and `https://www.googleapis.com/auth/gmail.readonly`.",
+        "text": "Sending email requires the sensitive scope https://www.googleapis.com/auth/gmail.send; reading the inbox requires the restricted scope https://www.googleapis.com/auth/gmail.readonly which requires CASA Tier 2 third-party security assessment.",
         "claim_ids": [
           "K3"
         ]
@@ -309,8 +309,7 @@
         "classification": "restricted",
         "claim_ids": [
           "K3"
-        ],
-        "classification_note": "Corrected from sensitive to restricted. gmail.readonly is a restricted scope requiring CASA Tier 2 for server-side access per Google OAuth policy."
+        ]
       }
     ],
     "blockers": [
@@ -386,12 +385,12 @@
         "basis": "documented",
         "excerpt": "",
         "excerpt_status": "not_checked",
-        "review_result": "supported",
-        "support_note": "Confirmed in Google Cloud Identity Docs: creating an OAuth 2.0 client ID requires a GCP project and configured OAuth consent screen."
+        "review_result": "not_reviewed",
+        "support_note": ""
       },
       {
         "id": "K3",
-        "text": "The smallest documented permissions for sending email and optionally reading the inbox are https://www.googleapis.com/auth/gmail.send (classified as SENSITIVE) and https://www.googleapis.com/auth/gmail.readonly (classified as RESTRICTED). Sensitive scopes require branding/domain verification only; restricted scopes additionally require CASA Tier 2 security assessment for server-side access.",
+        "text": "The smallest documented permissions for sending email and optionally reading the inbox are https://www.googleapis.com/auth/gmail.send (classified as sensitive) and https://www.googleapis.com/auth/gmail.readonly (classified as restricted).",
         "conditions": "When requesting permissions to send mail and read the inbox.",
         "source_ids": [
           "S1",
@@ -401,12 +400,12 @@
         "basis": "documented",
         "excerpt": "",
         "excerpt_status": "not_checked",
-        "review_result": "contradicted",
-        "support_note": "Original claim incorrectly marked both scopes as sensitive. gmail.send is sensitive (branding/domain verification only). gmail.readonly is restricted (CASA Tier 2 required for server-side access). Source: https://developers.google.com/workspace/guides/create-credentials#gmail_scopes"
+        "review_result": "not_reviewed",
+        "support_note": ""
       },
       {
         "id": "K4",
-        "text": "For external customers, sensitive scopes (e.g. gmail.send) trigger Google OAuth app verification requiring branding and domain verification. Restricted scopes (e.g. gmail.readonly) for server-side access additionally require annual CASA Tier 2 security assessment, with exceptions for read-only internal Workspace apps and explicitly listed test users. The 2-4 week timeline estimate applies to restricted-scope CASA assessments only, not to sensitive-scope verification.",
+        "text": "For external customers, requesting sensitive scopes triggers standard Google OAuth app verification; requesting restricted scopes like gmail.readonly requires an annual Cloud Application Security Assessment (CASA Tier 2) by an authorized third-party assessor.",
         "conditions": "When requesting sensitive scopes for users outside the Google Workspace organization.",
         "source_ids": [
           "S1"
@@ -415,8 +414,8 @@
         "basis": "documented",
         "excerpt": "Sensitive scopes (gmail.send, gmail.readonly, gmail.modify) 2-4 weeks",
         "excerpt_status": "not_checked",
-        "review_result": "contradicted",
-        "support_note": "Original K4 incorrectly applied CASA Tier review to all sensitive scopes. Only restricted scopes require CASA Tier 2 for server-side access. The blanket 2-4 week estimate was misleading for sensitive-only scenarios. Source: https://developers.google.com/workspace/guides/app-verification"
+        "review_result": "not_reviewed",
+        "support_note": ""
       },
       {
         "id": "K5",
@@ -429,8 +428,8 @@
         "basis": "documented",
         "excerpt": "",
         "excerpt_status": "not_checked",
-        "review_result": "supported",
-        "support_note": "Verified in Google OAuth Consent Screen Documentation: testing mode permits up to 100 test accounts without approval wait or fees."
+        "review_result": "not_reviewed",
+        "support_note": ""
       },
       {
         "id": "K6",
@@ -459,8 +458,8 @@
         "basis": "documented",
         "excerpt": "Your application must follow Google’s API Services User Data Policy and meet additional requirements for specific scopes.",
         "excerpt_status": "not_checked",
-        "review_result": "supported",
-        "support_note": "Confirmed in Google API Services User Data Policy & App Defense Alliance CASA requirements for restricted Gmail API scopes."
+        "review_result": "not_reviewed",
+        "support_note": ""
       },
       {
         "id": "K8",
@@ -725,23 +724,21 @@
   ],
   "attempts": [],
   "review": {
-    "reviewer": "OAuthPath coding agent (automated)",
-    "reviewed_at": "2026-11-04T14:55:11.622181+00:00",
-    "audited_claim_ids": [
-      "K2",
-      "K3",
-      "K4",
-      "K5",
-      "K7"
-    ],
-    "based_on_version": 1,
-    "reviewer_note": "Original reviewer field was incorrectly set to the project owner. This audit was generated by the coding agent."
+    "reviewer": null,
+    "reviewed_at": null,
+    "audited_claim_ids": [],
+    "based_on_version": null
   },
   "warnings": [
+    "Path own_app_production: added unknown gate 'customer_admin_action'",
+    "Path own_app_production: added unknown gate 'paid_access'",
+    "Path own_app_production: added unknown gate 'partner_program'",
+    "Path own_app_production: added unknown gate 'business_or_identity_verification'",
     "Gate customer_admin_action: all supporting claims are 'unknown' — assertion is weakly supported",
     "Gate paid_access: all supporting claims are 'unknown' — assertion is weakly supported",
     "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
-    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported"
+    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Moved 9 uncited source(s) to uncited_sources"
   ],
   "run": {
     "model_calls": 5,
@@ -756,6 +753,5 @@
     "duration_seconds": 114.0,
     "research_timed_out": false
   },
-  "retracted": true,
-  "retraction_reason": "Reviewer identity was incorrectly attributed to Monesh Patidar; this audit was performed by the OAuthPath coding agent, not a human. File preserved for history only. Pending genuine human review."
+  "retraction_reason": null
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 import inspect
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ from app.config import (
 from app.schema import (
     DraftGuideContent, Source, Attempt, ComposioInfo, ProviderInfo, Scenario,
 )
-from app.llm_gemini import generate
+from app.llm_gemini import generate, _sanitize_error, to_monotonic_deadline, remaining_deadline
 
 SYNTHESIS_SYSTEM_PROMPT = """Turn research findings into a structured launch guide. Return JSON matching
 the schema.
@@ -394,10 +395,12 @@ async def run_synthesis_anthropic(
 
     try:
         for attempt_num in range(2):  # Initial + one repair
-            remaining = deadline - time.time()
+            rem = remaining_deadline(deadline)
+            remaining = rem if rem is not None else 60.0
             if remaining < 15:
                 return None, {
                     "error": "Insufficient time for synthesis",
+                    "error_category": "timeout",
                     "model_calls": model_calls,
                     "tokens_input": total_input_tokens,
                     "tokens_output": total_output_tokens,
@@ -511,11 +514,16 @@ async def run_synthesis_gemini(
 
     schema_fallback = False
 
+    mono_deadline = to_monotonic_deadline(deadline)
+
     for attempt_num in range(2):
-        remaining = deadline - time.time()
+        rem = remaining_deadline(deadline)
+        remaining = rem if rem is not None else 60.0
+
         if remaining < 15:
             return None, {
                 "error": "Insufficient time for synthesis",
+                "error_category": "timeout",
                 "model_calls": model_calls,
                 "tokens_input": total_input_tokens,
                 "tokens_output": total_output_tokens,
@@ -531,6 +539,7 @@ async def run_synthesis_gemini(
                 json_schema=active_schema,
                 max_output_tokens=16384,
                 timeout_s=req_timeout,
+                deadline=mono_deadline,
             )
             model_calls += 1
             total_input_tokens += usage.get("prompt_token_count", 0)
@@ -554,18 +563,17 @@ async def run_synthesis_gemini(
                 else:
                     return None, {
                         "error": "Synthesis output truncated by max_tokens",
+                        "error_category": "invalid_output",
                         "model_calls": model_calls,
                         "tokens_input": total_input_tokens,
                         "tokens_output": total_output_tokens,
                     }
 
             raw_text = (resp.text or "").strip()
-            if raw_text.startswith("```"):
-                parts = raw_text.split("```")
-                if len(parts) >= 2:
-                    raw_text = parts[1]
-                    if raw_text.startswith("json"):
-                        raw_text = raw_text[4:]
+            if "```" in raw_text:
+                m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text)
+                if m:
+                    raw_text = m.group(1)
             raw_text = raw_text.strip()
             guide_data = json.loads(raw_text)
             guide_content = DraftGuideContent.model_validate(guide_data)
@@ -579,22 +587,40 @@ async def run_synthesis_gemini(
             # Re-raise task cancellation immediately — do not treat as a JSON error
             if isinstance(exc, asyncio.CancelledError):
                 raise
+
             err_str = str(exc)
-            if "400" in err_str or "INVALID_ARGUMENT" in err_str or "schema" in err_str.lower():
+            is_schema_err = ("400" in err_str or "INVALID_ARGUMENT" in err_str or "schema" in err_str.lower())
+            if is_schema_err and attempt_num == 0:
                 schema_fallback = True
                 user_message += (
                     "\n\nReturn only valid JSON matching this schema: "
                     + json.dumps(GUIDE_SCHEMA)
                 )
+                continue
+
+            # Typed provider errors: do not retry as if JSON were malformed
+            from app.llm_gemini import (
+                _classify, GeminiError, RateLimitExceeded, AuthError,
+                ProviderUnavailable, RequestTimeout, InvalidRequest,
+            )
+            typed = _classify(exc) if not isinstance(exc, GeminiError) else exc
+            if isinstance(typed, (RateLimitExceeded, AuthError, ProviderUnavailable, RequestTimeout, InvalidRequest)):
+                return None, {
+                    "error": str(typed),
+                    "error_category": getattr(typed, "category", "unknown"),
+                    "model_calls": model_calls,
+                    "tokens_input": total_input_tokens,
+                    "tokens_output": total_output_tokens,
+                }
 
             if attempt_num == 0:
-                from app.llm_gemini import _sanitize_error
                 safe_err = _sanitize_error(err_str)[:100]
                 user_message += f"\n\nPrevious attempt: {safe_err}. Please return valid JSON matching the schema."
                 continue
             else:
                 return None, {
                     "error": f"Synthesis failed after repair: {_sanitize_error(err_str)[:200]}",
+                    "error_category": "invalid_output",
                     "model_calls": model_calls,
                     "tokens_input": total_input_tokens,
                     "tokens_output": total_output_tokens,
@@ -602,6 +628,7 @@ async def run_synthesis_gemini(
 
     return None, {
         "error": "Synthesis exhausted attempts",
+        "error_category": "invalid_output",
         "model_calls": model_calls,
         "tokens_input": total_input_tokens,
         "tokens_output": total_output_tokens,

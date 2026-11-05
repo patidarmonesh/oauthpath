@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -40,13 +40,13 @@ def _sanitize_secrets(text: str, secrets: list[str] | None = None) -> str:
 
     # 2. HTTP Authorization headers and Bearer tokens
     result = re.sub(
-        r'\bBearer\s+[A-Za-z0-9_\-\.]+',
+        r'\bBearer\s+[A-Za-z0-9_\-\.\+\/=~]+',
         'Bearer [REDACTED]',
         result,
         flags=re.IGNORECASE,
     )
     result = re.sub(
-        r'\bAuthorization\s*:\s*(?:Bearer\s+)?[A-Za-z0-9_\-\.]+',
+        r'\bAuthorization\s*:\s*(?:Bearer\s+)?[A-Za-z0-9_\-\.\+\/=~]+',
         'Authorization: [REDACTED]',
         result,
         flags=re.IGNORECASE,
@@ -54,7 +54,7 @@ def _sanitize_secrets(text: str, secrets: list[str] | None = None) -> str:
 
     # 3. JSON key-value pairs (e.g. {"api_key": "secret"}, {"client_secret": "secret"})
     result = re.sub(
-        r'("?(?:api[_-]?key|client[_-]?secret|client[_-]?id|secret|token|password)"?\s*[:=]\s*)"?([A-Za-z0-9_\-\.]{6,})"?',
+        r'("?(?:api[_-]?key|client[_-]?secret|client[_-]?id|secret|token|password)"?\s*[:=]\s*)"?([A-Za-z0-9_\-\.\+\/=~]{6,})"?',
         r'\1"[REDACTED]"',
         result,
         flags=re.IGNORECASE,
@@ -70,7 +70,7 @@ def _sanitize_secrets(text: str, secrets: list[str] | None = None) -> str:
 
     # 5. Generic token / key patterns
     result = re.sub(
-        r'\b(api[_-]?key|client[_-]?secret|client[_-]?id|secret|token)\b\s*[:=]\s*["\']?[A-Za-z0-9_\-\.]{6,}["\']?',
+        r'\b(api[_-]?key|client[_-]?secret|client[_-]?id|secret|token)\b\s*[:=]\s*["\']?[A-Za-z0-9_\-\.\+\/=~]{6,}["\']?',
         r'\1=[REDACTED]',
         result,
         flags=re.IGNORECASE,

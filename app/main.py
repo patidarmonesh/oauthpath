@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import json
 import os
 import uuid
@@ -127,6 +128,39 @@ def _import_reviewed_seeds():
         except Exception as e:
             print(f"  Seed error: {f.name} — {e}")
 
+    # Retract superseded v1 drafts that had known factual errors if present
+    for gid in ("github-2f1b5349", "slack-e07c7c36", "gmail-google-b419b8d4"):
+        try:
+            store.retract_guide_version(gid, 1, "Superseded by v3 corrected guide")
+        except Exception:
+            pass
+
+
+
+def _error_category(error: str) -> str:
+    """Derive a safe error category from a pipeline error string (never shown raw)."""
+    m = re.search(r"\[(auth|rate_limit|unavailable|timeout|invalid_request|invalid_output|unknown)\]", error)
+    if m:
+        return m.group(1)
+    low = error.lower()
+    if "free-tier" in low or "quota" in low or "rate limit" in low or "resource_exhausted" in low or "429" in low:
+        return "rate_limit"
+    if "timed out" in low or "timeout" in low:
+        return "timeout"
+    if "api key" in low or "401" in low or "403" in low:
+        return "auth"
+    if "503" in low or "unavailable" in low or "overloaded" in low:
+        return "unavailable"
+    return "unknown"
+
+
+def _public_error_message(error: str, error_id: str) -> str:
+    """Map a pipeline error string to a safe, actionable public message."""
+    from app.llm_gemini import _SAFE_MESSAGES
+    category = _error_category(error)
+    if category == "unknown":
+        return f"Generation failed (Error ID: {error_id})"
+    return f"{_SAFE_MESSAGES.get(category, _SAFE_MESSAGES['unknown'])} (Error ID: {error_id})"
 
 def _get_client_ip(request: Request) -> str:
     """Get client IP. Only trust X-Forwarded-For from configured proxies."""
@@ -196,103 +230,112 @@ async def create_job(body: CreateJobRequest, request: Request):
 async def _run_job(job_id: str, app_name: str, feature: str,
                     audience: str, website: str, force: bool):
     """Run a pipeline job in the background."""
-    async with job_semaphore:
-        try:
-            store.update_job(job_id, status=JobStatus.running.value, stage="starting")
+    try:
+        async with job_semaphore:
+            try:
+                store.update_job(job_id, status=JobStatus.running.value, stage="starting")
 
-            def on_event(msg: str):
-                store.add_job_event(job_id, msg)
-                store.update_job(job_id, stage=msg[:100])
+                def on_event(msg: str):
+                    store.add_job_event(job_id, msg)
+                    store.update_job(job_id, stage=msg[:100])
 
-            guide, error = await asyncio.wait_for(
-                run_pipeline(
-                    app_name=app_name,
-                    feature=feature,
-                    audience=audience,
-                    website=website,
-                    force=force,
-                    store=store,
-                    on_event=on_event,
-                ),
-                timeout=JOB_TIMEOUT_SECONDS,
-            )
+                guide, error = await asyncio.wait_for(
+                    run_pipeline(
+                        app_name=app_name,
+                        feature=feature,
+                        audience=audience,
+                        website=website,
+                        force=force,
+                        store=store,
+                        on_event=on_event,
+                    ),
+                    timeout=JOB_TIMEOUT_SECONDS + 10.0,
+                )
 
-            if error:
-                # Check for ambiguous needs_input
-                if error.startswith("needs_input:ambiguous:"):
-                    candidates_json = error[len("needs_input:ambiguous:"):]
+                if error:
+                    # Check for ambiguous needs_input
+                    if error.startswith("needs_input:ambiguous:"):
+                        candidates_json = error[len("needs_input:ambiguous:"):]
+                        store.update_job(
+                            job_id,
+                            status=JobStatus.needs_input.value,
+                            candidates=candidates_json,
+                            stage="Awaiting input: ambiguous name",
+                        )
+                    else:
+                        error_id = str(uuid.uuid4())[:8]
+                        print(f"Job {job_id} error [{error_id}]: {error}")
+                        store.update_job(
+                            job_id,
+                            status=JobStatus.failed.value,
+                            error_message=_public_error_message(error, error_id),
+                            error_id=error_id,
+                        )
+                elif guide:
+                    status = (JobStatus.partial.value
+                              if guide.status == "partial"
+                              else JobStatus.succeeded.value)
                     store.update_job(
                         job_id,
-                        status=JobStatus.needs_input.value,
-                        candidates=candidates_json,
-                        stage="Awaiting input: ambiguous name",
+                        status=status,
+                        guide_id=guide.id,
+                        guide_version=guide.version,
                     )
                 else:
                     error_id = str(uuid.uuid4())[:8]
-                    print(f"Job {job_id} error [{error_id}]: {error}")
                     store.update_job(
                         job_id,
                         status=JobStatus.failed.value,
-                        error_message=f"Generation failed (Error ID: {error_id})",
+                        error_message=f"No guide produced (Error ID: {error_id})",
                         error_id=error_id,
                     )
-            elif guide:
-                status = (JobStatus.partial.value
-                          if guide.status == "partial"
-                          else JobStatus.succeeded.value)
+
+            except asyncio.CancelledError:
                 store.update_job(
                     job_id,
-                    status=status,
-                    guide_id=guide.id,
-                    guide_version=guide.version,
+                    status=JobStatus.interrupted.value,
+                    stage="Interrupted",
+                    error_message="Job was cancelled.",
                 )
-            else:
+                raise
+            except asyncio.TimeoutError:
                 error_id = str(uuid.uuid4())[:8]
                 store.update_job(
                     job_id,
                     status=JobStatus.failed.value,
-                    error_message=f"No guide produced (Error ID: {error_id})",
+                    error_message=f"Job timed out (Error ID: {error_id})",
                     error_id=error_id,
                 )
-
-        except asyncio.TimeoutError:
-            error_id = str(uuid.uuid4())[:8]
-            store.update_job(
-                job_id,
-                status=JobStatus.failed.value,
-                error_message=f"Job timed out (Error ID: {error_id})",
-                error_id=error_id,
-            )
-        except Exception as e:
-            error_id = str(uuid.uuid4())[:8]
-            # Log the full traceback server-side only — never expose raw exceptions to clients
-            print(f"Job {job_id} exception [{error_id}]: {traceback.format_exc()}")
-            from app.llm_gemini import (
-                GeminiError, RateLimitExceeded, AuthError,
-                ProviderUnavailable, RequestTimeout, InvalidRequest,
-            )
-            if isinstance(e, RateLimitExceeded):
-                msg = "Free-tier request quota reached. Wait before retrying."
-            elif isinstance(e, AuthError):
-                msg = f"API key configuration error (Error ID: {error_id}). Check server configuration."
-            elif isinstance(e, ProviderUnavailable):
-                msg = f"AI provider temporarily unavailable (Error ID: {error_id}). Try again shortly."
-            elif isinstance(e, RequestTimeout):
-                msg = f"Request timed out (Error ID: {error_id}). Try again."
-            elif isinstance(e, InvalidRequest):
-                msg = f"Invalid model request (Error ID: {error_id}). Check configuration."
-            elif isinstance(e, GeminiError):
-                msg = f"Provider error (Error ID: {error_id})."
-            else:
-                msg = f"An error occurred (Error ID: {error_id})"
-            store.update_job(
-                job_id,
-                status=JobStatus.failed.value,
-                error_message=msg,
-                error_id=error_id,
-            )
-        finally:
-            active_tasks.pop(job_id, None)
+            except Exception as e:
+                error_id = str(uuid.uuid4())[:8]
+                # Log the full traceback server-side only — never expose raw exceptions to clients
+                print(f"Job {job_id} exception [{error_id}]: {traceback.format_exc()}")
+                from app.llm_gemini import (
+                    GeminiError, RateLimitExceeded, AuthError,
+                    ProviderUnavailable, RequestTimeout, InvalidRequest,
+                )
+                if isinstance(e, RateLimitExceeded):
+                    msg = "Free-tier request quota reached. Wait before retrying."
+                elif isinstance(e, AuthError):
+                    msg = f"API key configuration error (Error ID: {error_id}). Check server configuration."
+                elif isinstance(e, ProviderUnavailable):
+                    msg = f"AI provider temporarily unavailable (Error ID: {error_id}). Try again shortly."
+                elif isinstance(e, RequestTimeout):
+                    msg = f"Request timed out (Error ID: {error_id}). Try again."
+                elif isinstance(e, InvalidRequest):
+                    msg = f"Invalid model request (Error ID: {error_id}). Check configuration."
+                elif isinstance(e, GeminiError):
+                    msg = f"Provider error (Error ID: {error_id})."
+                else:
+                    msg = f"An error occurred (Error ID: {error_id})"
+                store.update_job(
+                    job_id,
+                    status=JobStatus.failed.value,
+                    error_message=msg,
+                    error_id=error_id,
+                )
+    finally:
+        active_tasks.pop(job_id, None)
 
 
 @app.get("/api/jobs/{job_id}")

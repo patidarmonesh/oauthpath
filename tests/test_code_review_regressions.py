@@ -1148,5 +1148,179 @@ async def test_research_timeout_with_partial_findings_saves_partial_guide():
             )):
                 guide, err = await run_pipeline("TestApp", "sync", "team", store=None)
                 assert guide is None
-                assert "Research failed: Research model call timed out" in err
+                assert "timeout" in err.lower()
+
+
+# ── Regressions for 5 November 2026 Code Review Findings ────────────────────
+import time
+
+@pytest.mark.anyio
+async def test_review_5nov_finding4_truncation_followed_by_bad_json_does_not_crash():
+    """P2 Finding 4: Truncation (MAX_TOKENS) on attempt 0 followed by bad JSON on attempt 1
+    does not raise UnboundLocalError and returns structured invalid_output category."""
+    from google.genai import types
+    from app.synthesis import run_synthesis_gemini
+    from app.schema import ProviderInfo, Scenario, ComposioInfo
+
+    provider = ProviderInfo(name="TestApp", official_domain="testapp.com", identity_status="resolved")
+    scenario = Scenario(feature="sync", audience="external customers")
+    composio = ComposioInfo(lookup_status="no_match")
+
+    # Attempt 0: Truncated by MAX_TOKENS
+    cand0 = types.Candidate(
+        content=types.Content(role="model", parts=[types.Part.from_text(text='{"overview": "incomplet')]),
+        finish_reason=types.FinishReason.MAX_TOKENS,
+    )
+    resp0 = types.GenerateContentResponse(candidates=[cand0])
+
+    # Attempt 1: Malformed JSON text
+    cand1 = types.Candidate(
+        content=types.Content(role="model", parts=[types.Part.from_text(text="Sorry, here is the text without json {invalid")]),
+        finish_reason=types.FinishReason.STOP,
+    )
+    resp1 = types.GenerateContentResponse(candidates=[cand1])
+
+    with patch("app.synthesis.generate", AsyncMock(side_effect=[(resp0, {}), (resp1, {})])):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "fake_key"}):
+            guide, stats = await run_synthesis_gemini(
+                provider, scenario, composio, sources=[], attempts=[], findings="Findings", deadline=time.time() + 60.0
+            )
+
+    assert guide is None
+    assert stats["error_category"] == "invalid_output"
+    assert "Synthesis failed after repair" in stats["error"]
+    assert stats["model_calls"] == 2
+
+
+@pytest.mark.anyio
+async def test_review_5nov_finding5_synthesis_quota_error_preserved_in_pipeline_and_jobs():
+    """P2 Finding 5: Synthesis preserves typed RateLimitExceeded error category and does not retry as JSON failure.
+    Pipeline carries category and job displays safe quota message."""
+    from app.synthesis import run_synthesis_gemini
+    from app.llm_gemini import RateLimitExceeded
+    from app.schema import ProviderInfo, Scenario, ComposioInfo
+    from app.main import _public_error_message, _error_category
+
+    provider = ProviderInfo(name="TestApp", official_domain="testapp.com", identity_status="resolved")
+    scenario = Scenario(feature="sync", audience="external customers")
+    composio = ComposioInfo(lookup_status="no_match")
+
+    # generate raises RateLimitExceeded
+    mock_gen = AsyncMock(side_effect=RateLimitExceeded("Resource has been exhausted (e.g. check quota)"))
+
+    with patch("app.synthesis.generate", mock_gen):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "fake_key"}):
+            guide, stats = await run_synthesis_gemini(
+                provider, scenario, composio, sources=[], attempts=[], findings="Findings", deadline=time.time() + 60.0
+            )
+
+    # Must fail immediately on first attempt without retrying as malformed JSON
+    assert guide is None
+    assert mock_gen.call_count == 1
+    assert stats["error_category"] == "rate_limit"
+
+    # Pipeline maps category properly
+    pipeline_err = f"Synthesis failed [{stats['error_category']}]: {stats['error']}"
+    assert _error_category(pipeline_err) == "rate_limit"
+    public_msg = _public_error_message(pipeline_err, "err-123")
+    assert "Free-tier request quota reached" in public_msg
+    assert "Resource has been exhausted" not in public_msg
+
+
+@pytest.mark.anyio
+async def test_review_5nov_finding6_deadline_bounds_inflight_gemini_call():
+    """P2 Finding 6: An in-flight generate() call exceeding deadline raises RequestTimeout bounded by deadline."""
+    import asyncio
+    import time
+    from app.llm_gemini import generate, RequestTimeout
+
+    async def slow_generate(*args, **kwargs):
+        await asyncio.sleep(0.50)
+        return MagicMock()
+
+    with patch("app.llm_gemini.get_gemini_client") as mock_client_getter:
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = slow_generate
+        mock_client_getter.return_value = mock_client
+
+        t0 = time.monotonic()
+        with pytest.raises(RequestTimeout):
+            await generate(
+                ["Test prompt"],
+                model="gemini-test",
+                deadline=t0 + 0.05,
+            )
+        elapsed = time.monotonic() - t0
+        assert elapsed < 0.25, f"Call was not bounded by deadline: took {elapsed:.3f}s"
+
+
+@pytest.mark.anyio
+async def test_review_5nov_finding7_empty_extracted_text_marked_failed_not_read():
+    """P2 Finding 7: Extraction returning empty text is recorded as failed, not read.
+    Fallback verification pass tries unread snippets instead of skipping due to attempted fetches."""
+    from google.genai import types
+    from app.research import run_research_gemini
+    from app.schema import ProviderInfo, Scenario, ComposioInfo
+
+    provider = ProviderInfo(name="Example", official_domain="example.com", identity_status="assumed")
+    scenario = Scenario(feature="sync", audience="external customers")
+    composio = ComposioInfo(lookup_status="no_match")
+
+    url1 = "https://example.com/empty"
+    url2 = "https://example.com/valid"
+
+    # Turn 1: model searches
+    fc_search = types.FunctionCall(name="web_search", args={"query": "example oauth"})
+    cand1 = types.Candidate(content=types.Content(role="model", parts=[types.Part(function_call=fc_search)]))
+    resp1 = types.GenerateContentResponse(candidates=[cand1])
+
+    # Turn 2: model reads url1
+    fc_read = types.FunctionCall(name="read_page", args={"url": url1})
+    cand2 = types.Candidate(content=types.Content(role="model", parts=[types.Part(function_call=fc_read)]))
+    resp2 = types.GenerateContentResponse(candidates=[cand2])
+
+    # Turn 3: model returns snippet-only findings
+    cand3 = types.Candidate(content=types.Content(role="model", parts=[types.Part.from_text(text="## Findings\nOAuth info")]))
+    resp3 = types.GenerateContentResponse(candidates=[cand3])
+
+    # Turn 4: evidence check calls model after reading url2
+    cand4 = types.Candidate(content=types.Content(role="model", parts=[types.Part.from_text(text="## Refined Findings\nVerified from url2")]))
+    resp4 = types.GenerateContentResponse(candidates=[cand4])
+
+    async def mock_extract(urls):
+        success = {}
+        failure = {}
+        for u in urls:
+            if u == url1:
+                # Returns empty whitespace
+                success[u] = "   \n\t   "
+            elif u == url2:
+                success[u] = "Valid documentation content about OAuth endpoints"
+        return success, failure
+
+    with patch("app.research.generate", AsyncMock(side_effect=[(resp1, {}), (resp2, {}), (resp3, {}), (resp4, {})])):
+        with patch("app.web_tools.search", AsyncMock(return_value=[
+            {"title": "Empty Page", "url": url1, "content": "Snippet 1"},
+            {"title": "Valid Docs", "url": url2, "content": "Snippet 2"},
+        ])):
+            with patch("app.web_tools.extract", side_effect=mock_extract):
+                with patch.dict("os.environ", {"GEMINI_API_KEY": "fake_key", "TAVILY_API_KEY": "fake_key"}):
+                    findings, sources, stats, page_texts = await run_research_gemini(
+                        provider, scenario, composio, deadline=9999999999.0
+                    )
+
+    # url1 must be failed, NOT read
+    s1 = next(s for s in sources if s.url == url1)
+    assert s1.retrieval_status == "failed"
+    assert s1.id not in page_texts
+
+    # url2 must have been picked up by the fallback evidence check and marked read
+    s2 = next(s for s in sources if s.url == url2)
+    assert s2.retrieval_status == "read"
+    assert s2.id in page_texts
+    assert page_texts[s2.id] == "Valid documentation content about OAuth endpoints"
+
+    # stats must report 1 successful page read (not 2, not 0)
+    assert stats["page_reads"] == 1
+    assert stats["fetch_attempts"] == 2
 

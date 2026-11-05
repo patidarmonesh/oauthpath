@@ -38,7 +38,7 @@ MAX_TURNS: int = int(os.getenv("MAX_TURNS", "8"))
 JOBS_PER_IP_PER_HOUR: int = int(os.getenv("JOBS_PER_IP_PER_HOUR", "5"))
 CACHE_MAX_AGE_HOURS: int = int(os.getenv("CACHE_MAX_AGE_HOURS", "168"))
 
-PUBLIC_BASE_URL: str = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
+PUBLIC_BASE_URL: str = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
 def get_active_provider(caller_module=None) -> str:

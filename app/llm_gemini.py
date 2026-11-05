@@ -119,6 +119,24 @@ def get_gemini_client() -> genai.Client:
     return _gemini_client
 
 
+def to_monotonic_deadline(deadline: float | None) -> float | None:
+    """Convert any deadline (monotonic or wall-clock epoch) to a monotonic absolute timestamp."""
+    if deadline is None:
+        return None
+    if deadline > 1e9:
+        return time.monotonic() + max(0.0, deadline - time.time())
+    return deadline
+
+
+def remaining_deadline(deadline: float | None) -> float | None:
+    """Return remaining seconds until deadline, supporting both monotonic and epoch deadlines."""
+    if deadline is None:
+        return None
+    if deadline > 1e9:
+        return deadline - time.time()
+    return deadline - time.monotonic()
+
+
 # ── Error classification ────────────────────────────────────────────────────
 
 def _classify(exc: Exception) -> GeminiError:
@@ -127,6 +145,9 @@ def _classify(exc: Exception) -> GeminiError:
     Uses structured HTTP status fields first; falls back to narrowly scoped
     text patterns only as a last resort.  503/unavailable is NOT a quota error.
     """
+    if isinstance(exc, GeminiError):
+        return exc
+
     # Prefer structured fields (google-genai APIError exposes .code)
     code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
 
@@ -142,7 +163,7 @@ def _classify(exc: Exception) -> GeminiError:
         return RequestTimeout(safe_message_for(RequestTimeout()))
 
     # asyncio / SDK timeout signals
-    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)) or "timeout" in type(exc).__name__.lower():
         return RequestTimeout(safe_message_for(RequestTimeout()))
 
     # Narrow text fallback — only when no structured code is available
@@ -240,19 +261,42 @@ async def generate(
 
     config = types.GenerateContentConfig(**config_kwargs)
 
-    # Single retry on rate-limit (429 only), bounded by the remaining deadline.
+    # Retry policy:
+    # - 503 (ProviderUnavailable): up to 3 retries (waits 10s, 20s, 40s), bounded by deadline.
+    # - 429 (RateLimitExceeded): single retry, bounded by deadline.
+    mono_deadline = to_monotonic_deadline(deadline)
     last_exc: Exception | None = None
-    for attempt in range(2):
+    max_attempts = 4  # Initial try + up to 3 retries for 503
+    retries_503 = 0
+    retries_429 = 0
+    delays_503 = [10.0, 20.0, 40.0]
+
+    for attempt in range(max_attempts):
         # Re-check deadline before each attempt
-        if deadline is not None and time.monotonic() >= deadline:
-            raise RequestTimeout(safe_message_for(RequestTimeout()))
+        if mono_deadline is not None:
+            remaining_total = mono_deadline - time.monotonic()
+            if remaining_total <= 0:
+                raise RequestTimeout(safe_message_for(RequestTimeout()))
+            call_timeout = remaining_total if timeout_s is None else min(timeout_s, remaining_total)
+        else:
+            call_timeout = timeout_s
 
         try:
-            resp = await client.aio.models.generate_content(
-                model=target_model,
-                contents=contents,
-                config=config,
-            )
+            if call_timeout is not None:
+                resp = await asyncio.wait_for(
+                    client.aio.models.generate_content(
+                        model=target_model,
+                        contents=contents,
+                        config=config,
+                    ),
+                    timeout=max(0.001, call_timeout),
+                )
+            else:
+                resp = await client.aio.models.generate_content(
+                    model=target_model,
+                    contents=contents,
+                    config=config,
+                )
             usage_meta = getattr(resp, "usage_metadata", None)
             usage = {
                 "prompt_token_count": getattr(usage_meta, "prompt_token_count", 0) or 0,
@@ -264,19 +308,35 @@ async def generate(
             last_exc = exc
             typed = _classify(exc)
 
-            # Only retry on pure 429 rate-limit, never on 503/unavailable
-            if isinstance(typed, RateLimitExceeded) and attempt == 0:
-                delay = _extract_retry_delay(exc)
-                # Do not sleep beyond the remaining budget
-                if deadline is not None:
-                    remaining = deadline - time.monotonic()
+            # Retry 503 up to 3 times (10s, 20s, 40s), bounded by deadline
+            if isinstance(typed, ProviderUnavailable) and retries_503 < len(delays_503):
+                delay = delays_503[retries_503]
+                retries_503 += 1
+                if mono_deadline is not None:
+                    remaining = mono_deadline - time.monotonic()
+                    if remaining <= 1.0:
+                        raise RequestTimeout(safe_message_for(RequestTimeout()))
                     delay = min(delay, max(0.0, remaining - 1.0))
                 if delay > 0:
                     await asyncio.sleep(delay)
                 continue
+
+            # Retry 429 once, bounded by deadline
+            if isinstance(typed, RateLimitExceeded) and retries_429 < 1:
+                delay = _extract_retry_delay(exc)
+                retries_429 += 1
+                if mono_deadline is not None:
+                    remaining = mono_deadline - time.monotonic()
+                    if remaining <= 1.0:
+                        raise RequestTimeout(safe_message_for(RequestTimeout()))
+                    delay = min(delay, max(0.0, remaining - 1.0))
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                continue
+
             raise typed from None
 
-    # Exhausted retry
+    # Exhausted retries
     if last_exc is not None:
         raise _classify(last_exc) from None
     raise GeminiError(_SAFE_MESSAGES["unknown"])

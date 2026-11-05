@@ -1,0 +1,14 @@
+{
+  "id": "A-github-20261104-173203",
+  "actor": "assisted",
+  "provider": "github",
+  "scenario": "Test connection via custom or managed auth for oauthpath-test-1793813523",
+  "action": "Create auth config and connect test user for github",
+  "start_time": "2026-11-04T17:32:03.412038+00:00",
+  "end_time": "2026-11-04T17:32:04.030350+00:00",
+  "environment": "Local test account",
+  "observed_result": "Error querying toolkit auth scheme for 'github': 401 Invalid API key: ck_**Pk7T",
+  "status": "failed",
+  "artifact_path": null,
+  "limitation": "Connection attempt failed during API/SDK execution; credentials or network blocked"
+}

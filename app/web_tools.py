@@ -117,7 +117,10 @@ async def extract(urls: list[str]) -> tuple[dict[str, str], dict[str, str]]:
     # 1. Process successful results
     for item in resp.get("results", []):
         u = item.get("url") or ""
-        content = item.get("raw_content") or ""
+        content = (item.get("raw_content") or "").strip()
+        if not content:
+            failure_map[u] = "Empty page content returned"
+            continue
         if len(content) > max_chars:
             content = content[:max_chars]
         success_map[u] = content

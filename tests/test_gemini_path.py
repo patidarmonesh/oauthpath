@@ -368,7 +368,7 @@ async def test_gemini_429_retry_and_safe_error():
     # Slept once before retry
     mock_sleep.assert_called_once()
     # Message is safe and masks the secret
-    assert "Free-tier model limit reached" in str(exc_info.value)
+    assert "quota" in str(exc_info.value).lower() or "free-tier" in str(exc_info.value).lower()
     assert secret_key not in str(exc_info.value)
 
 

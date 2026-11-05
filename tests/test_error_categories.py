@@ -168,14 +168,23 @@ async def test_generate_raises_rate_limit_exceeded_on_persistent_429():
 
 @pytest.mark.anyio
 async def test_generate_raises_provider_unavailable_on_503():
-    """503 raises ProviderUnavailable, not RateLimitExceeded."""
+    """503 raises ProviderUnavailable, retrying up to 3 times."""
     err_503 = _api_error(503, "Service temporarily unavailable")
     client = MagicMock()
     client.aio.models.generate_content = AsyncMock(side_effect=err_503)
 
+    slept: list[float] = []
+    async def fake_sleep(s: float) -> None:
+        slept.append(s)
+
     with patch("app.llm_gemini.get_gemini_client", return_value=client):
-        with pytest.raises(ProviderUnavailable):
-            await generate(["Hello"], model="gemini-test")
+        with patch("asyncio.sleep", side_effect=fake_sleep):
+            with pytest.raises(ProviderUnavailable):
+                await generate(["Hello"], model="gemini-test")
+
+    # Retried 3 times with delays 10, 20, 40
+    assert slept == [10.0, 20.0, 40.0]
+    assert client.aio.models.generate_content.call_count == 4
 
 
 @pytest.mark.anyio
@@ -186,8 +195,9 @@ async def test_generate_message_for_503_does_not_say_rate_limit():
     client.aio.models.generate_content = AsyncMock(side_effect=err_503)
 
     with patch("app.llm_gemini.get_gemini_client", return_value=client):
-        with pytest.raises(ProviderUnavailable) as exc_info:
-            await generate(["Hello"], model="gemini-test")
+        with patch("asyncio.sleep", AsyncMock()):
+            with pytest.raises(ProviderUnavailable) as exc_info:
+                await generate(["Hello"], model="gemini-test")
 
     msg = str(exc_info.value).lower()
     assert "unavailable" in msg or "outage" in msg or "provider" in msg
@@ -380,3 +390,97 @@ async def test_smoke_fails_on_bad_json(monkeypatch):
                 result = await smoke.main()
 
     assert result != 0, "smoke main() should exit non-zero on bad JSON output"
+
+
+# ── 7. Pipeline error string mapping and job error masking ────────────────────
+
+def test_error_category_and_public_message_mappings():
+    """Verify _error_category and _public_error_message behavior."""
+    from app.main import _error_category, _public_error_message
+
+    # [rate_limit] -> quota message
+    cat_rl = _error_category("Research failed [rate_limit]: HTTP 429 quota exhausted with secret_key=XYZ")
+    assert cat_rl == "rate_limit"
+    msg_rl = _public_error_message("Research failed [rate_limit]: HTTP 429 quota exhausted with secret_key=XYZ", "err123")
+    assert "quota" in msg_rl.lower() or "rate" in msg_rl.lower()
+    assert "(Error ID: err123)" in msg_rl
+    assert "secret_key=XYZ" not in msg_rl
+    assert "Research failed" not in msg_rl
+
+    # [timeout] -> timeout message
+    cat_to = _error_category("Research failed [timeout]: Deadline exceeded after 45s")
+    assert cat_to == "timeout"
+    msg_to = _public_error_message("Research failed [timeout]: Deadline exceeded after 45s", "err456")
+    assert "timed out" in msg_to.lower() or "timeout" in msg_to.lower()
+    assert "(Error ID: err456)" in msg_to
+    assert "Deadline exceeded after 45s" not in msg_to
+
+    # Uncategorized -> "Generation failed (Error ID: ...)"
+    cat_un = _error_category("Internal unexpected database corruption")
+    assert cat_un == "unknown"
+    msg_un = _public_error_message("Internal unexpected database corruption", "err789")
+    assert msg_un == "Generation failed (Error ID: err789)"
+    assert "Internal unexpected database corruption" not in msg_un
+
+
+@pytest.mark.anyio
+async def test_run_job_pipeline_error_categorized_and_raw_masked(tmp_path):
+    """Job status=failed gets safe categorized message and never leaks raw pipeline error."""
+    from app.store import Store
+    from app import main as app_module
+
+    db = tmp_path / "test_err_jobs.db"
+    test_store = Store(str(db))
+
+    # Case 1: [rate_limit] pipeline error string
+    job_id_rl = "job-pipe-rl"
+    test_store.create_job(job_id_rl, "TestApp", feature="f", audience="a", website="")
+    async def _fail_rl(*args, **kwargs):
+        return None, "Research failed [rate_limit]: 429 ResourceExhausted key=SECRET_123"
+
+    sem = asyncio.Semaphore(1)
+    with patch.object(app_module, "store", test_store), \
+         patch.object(app_module, "run_pipeline", _fail_rl), \
+         patch.object(app_module, "active_tasks", {}), \
+         patch.object(app_module, "job_semaphore", sem):
+        await app_module._run_job(job_id_rl, "TestApp", "f", "a", "", False)
+
+    job_rl = test_store.get_job(job_id_rl)
+    assert job_rl["status"] == "failed"
+    assert "SECRET_123" not in job_rl["error_message"]
+    assert "Research failed" not in job_rl["error_message"]
+    assert "quota" in job_rl["error_message"].lower() or "rate" in job_rl["error_message"].lower()
+
+    # Case 2: [timeout] pipeline error string
+    job_id_to = "job-pipe-to"
+    test_store.create_job(job_id_to, "TestApp", feature="f", audience="a", website="")
+    async def _fail_to(*args, **kwargs):
+        return None, "Research failed [timeout]: Request timed out at secret_internal_host"
+
+    with patch.object(app_module, "store", test_store), \
+         patch.object(app_module, "run_pipeline", _fail_to), \
+         patch.object(app_module, "active_tasks", {}), \
+         patch.object(app_module, "job_semaphore", sem):
+        await app_module._run_job(job_id_to, "TestApp", "f", "a", "", False)
+
+    job_to = test_store.get_job(job_id_to)
+    assert job_to["status"] == "failed"
+    assert "secret_internal_host" not in job_to["error_message"]
+    assert "timed out" in job_to["error_message"].lower()
+
+    # Case 3: Uncategorized pipeline error string
+    job_id_un = "job-pipe-un"
+    test_store.create_job(job_id_un, "TestApp", feature="f", audience="a", website="")
+    async def _fail_un(*args, **kwargs):
+        return None, "Some weird uncategorized internal error string with RAW_DETAIL"
+
+    with patch.object(app_module, "store", test_store), \
+         patch.object(app_module, "run_pipeline", _fail_un), \
+         patch.object(app_module, "active_tasks", {}), \
+         patch.object(app_module, "job_semaphore", sem):
+        await app_module._run_job(job_id_un, "TestApp", "f", "a", "", False)
+
+    job_un = test_store.get_job(job_id_un)
+    assert job_un["status"] == "failed"
+    assert "RAW_DETAIL" not in job_un["error_message"]
+    assert job_un["error_message"].startswith("Generation failed (Error ID: ")

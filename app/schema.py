@@ -181,7 +181,7 @@ class DraftStep(BaseModel):
     id: str
     title: str
     instructions: str
-    owner: str
+    owner: str = "you"
     step_dependencies: list[str] = Field(default_factory=list)
     success_condition: str = ""
     action_url: str = ""
@@ -410,6 +410,7 @@ class GuideRecord(BaseModel):
     review: ReviewInfo = Field(default_factory=ReviewInfo)
     warnings: list[str] = Field(default_factory=list)
     run: RunStats = Field(default_factory=RunStats)
+    retraction_reason: Optional[str] = None
 
 
 def make_guide_id(provider_name: str, scenario: Scenario, official_domain: str = "") -> str:

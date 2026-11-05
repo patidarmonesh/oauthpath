@@ -14,3 +14,7 @@ build/
 .pytest_cache/
 .mypy_cache/
 *.log
+/gh.md
+/gmail.md
+/slack.md
+

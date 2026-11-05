@@ -8,7 +8,7 @@ import os
 import time
 import inspect
 from datetime import datetime, timezone
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from app.config import (
     LLM_PROVIDER, GEMINI_API_KEY, GEMINI_MODEL, TAVILY_API_KEY,
@@ -17,7 +17,7 @@ from app.config import (
 )
 from app.schema import Source, ProviderInfo, Scenario, ComposioInfo
 from app.resolver import parse_domain
-from app.llm_gemini import generate
+from app.llm_gemini import generate, to_monotonic_deadline, remaining_deadline
 
 
 async def _close_client(client) -> None:
@@ -217,8 +217,10 @@ async def run_research_anthropic(
         findings_text = ""
         turns = 0
 
+        mono_deadline = to_monotonic_deadline(deadline)
         while turns < MAX_TURNS:
-            remaining = deadline - time.time()
+            rem = remaining_deadline(deadline)
+            remaining = rem if rem is not None else 60.0
             if remaining <= 0:
                 timed_out = True
                 if on_event:
@@ -537,6 +539,7 @@ async def run_research_gemini(
     total_output_tokens = 0
     model_calls = 0
     timed_out = False
+    mono_deadline = to_monotonic_deadline(deadline)
     run_stats_err = None
     run_stats_err_category: str | None = None
 
@@ -546,7 +549,9 @@ async def run_research_gemini(
     turns = 0
 
     while turns < MAX_TURNS:
-        remaining = deadline - time.time()
+        rem = remaining_deadline(deadline)
+        remaining = rem if rem is not None else 60.0
+
         if remaining <= 0:
             timed_out = True
             if on_event:
@@ -569,6 +574,7 @@ async def run_research_gemini(
                     system=system_prompt,
                     tool_mode="NONE",
                     timeout_s=call_timeout,
+                    deadline=mono_deadline,
                     max_output_tokens=4096,
                 )
                 model_calls += 1
@@ -578,6 +584,7 @@ async def run_research_gemini(
             except (asyncio.TimeoutError, TimeoutError):
                 timed_out = True
                 run_stats_err = "Research wrap-up call timed out"
+                run_stats_err_category = "timeout"
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -603,6 +610,7 @@ async def run_research_gemini(
                 tools=gemini_tools,
                 tool_mode="AUTO",
                 timeout_s=call_timeout,
+                deadline=mono_deadline,
                 max_output_tokens=4096,
             )
             model_calls += 1
@@ -611,6 +619,7 @@ async def run_research_gemini(
         except (asyncio.TimeoutError, TimeoutError):
             timed_out = True
             run_stats_err = "Research model call timed out"
+            run_stats_err_category = "timeout"
             break
         except asyncio.CancelledError:
             raise
@@ -631,28 +640,51 @@ async def run_research_gemini(
 
         if not resp.function_calls:
             findings_text = resp.text or ""
-            # Evidence enforcement: if no pages were actually read but searches ran,
-            # attempt a bounded verification pass on the best provider-domain source.
+            # Evidence enforcement: if no pages were successfully read but searches ran,
+            # attempt a bounded verification pass on unread provider-domain sources.
             # This prevents snippet-only findings from silently becoming the final output.
-            remaining_now = deadline - time.time()
+            successful_reads_count = sum(1 for s in sources if s.retrieval_status == "read")
+            if mono_deadline is not None:
+                remaining_now = mono_deadline - time.monotonic()
+            else:
+                remaining_now = deadline - time.time()
+
             if (
-                total_fetches == 0
+                successful_reads_count == 0
                 and total_searches > 0
-                and remaining_now > RESEARCH_WRAPUP_BUFFER + 10
+                and remaining_now > RESEARCH_WRAPUP_BUFFER + 5
                 and total_fetches < MAX_FETCHES
             ):
-                # Pick the best provider-domain source available
-                provider_sources = [s for s in sources if s.provider_domain and s.url.startswith("https://")]
-                target_source = provider_sources[0] if provider_sources else (sources[0] if sources else None)
-                if target_source and target_source.retrieval_status == "search_snippet_only":
+                # Pick candidate sources available that are still unattempted search snippets
+                candidate_sources = [
+                    s for s in sources
+                    if s.provider_domain and s.url.startswith("https://") and s.retrieval_status == "search_snippet_only"
+                ]
+                if not candidate_sources:
+                    candidate_sources = [
+                        s for s in sources
+                        if s.url.startswith("https://") and s.retrieval_status == "search_snippet_only"
+                    ]
+
+                for target_source in candidate_sources:
+                    if total_fetches >= MAX_FETCHES:
+                        break
+                    cur_rem = (mono_deadline - time.monotonic()) if mono_deadline is not None else (deadline - time.time())
+                    if cur_rem <= RESEARCH_WRAPUP_BUFFER + 2:
+                        break
+
                     if on_event:
                         on_event(f"Evidence check: reading {target_source.url}")
                     total_fetches += 1
+                    target_source.kind = "fetched_page"
                     try:
-                        success_map, failure_map = await web_tools.extract([target_source.url])
-                        if target_source.url in success_map:
-                            txt = success_map[target_source.url]
-                            target_source.kind = "fetched_page"
+                        extract_timeout = min(15.0, max(0.001, cur_rem - RESEARCH_WRAPUP_BUFFER))
+                        success_map, failure_map = await asyncio.wait_for(
+                            web_tools.extract([target_source.url]),
+                            timeout=extract_timeout,
+                        )
+                        txt = (success_map.get(target_source.url) or "").strip()
+                        if txt:
                             target_source.retrieval_status = "read"
                             page_texts[target_source.id] = txt
                             # Inject the page text and ask the model to refine with it
@@ -663,13 +695,15 @@ async def run_research_gemini(
                                          f"Update your findings if this primary source adds or contradicts anything."
                                 )],
                             ))
-                            call_timeout_ev = max(0.01, deadline - time.time() - RESEARCH_WRAPUP_BUFFER)
+                            rem_ev = (mono_deadline - time.monotonic()) if mono_deadline is not None else (deadline - time.time())
+                            call_timeout_ev = max(0.01, rem_ev - RESEARCH_WRAPUP_BUFFER)
                             try:
                                 resp_ev, usage_ev = await generate(
                                     contents=contents,
                                     system=system_prompt,
                                     tool_mode="NONE",
                                     timeout_s=call_timeout_ev,
+                                    deadline=mono_deadline,
                                     max_output_tokens=4096,
                                 )
                                 model_calls += 1
@@ -679,14 +713,19 @@ async def run_research_gemini(
                             except asyncio.CancelledError:
                                 raise
                             except Exception:
-                                pass  # keep existing findings_text on failure
+                                pass
+                            break  # A relevant primary source was successfully read
                         else:
                             target_source.retrieval_status = "failed"
-                            target_source.title = f"Failed fetch ({failure_map.get(target_source.url, 'unknown')[:50]})"
+                            err_msg = failure_map.get(target_source.url, "Empty page content returned")
+                            target_source.title = f"Failed fetch ({err_msg[:50]})"
                     except asyncio.CancelledError:
                         raise
-                    except Exception:
-                        pass  # search evidence unavailable; keep findings_text
+                    except Exception as exc:
+                        from app.llm_gemini import _sanitize_error
+                        safe_err = _sanitize_error(str(exc))[:50]
+                        target_source.retrieval_status = "failed"
+                        target_source.title = f"Failed fetch ({safe_err})"
             break
 
         parts = []
@@ -703,7 +742,9 @@ async def run_research_gemini(
                         on_event(f"Searching: {q}")
                     total_searches += 1
                     try:
-                        items = await web_tools.search(q)
+                        cur_rem = (mono_deadline - time.monotonic()) if mono_deadline is not None else (deadline - time.time())
+                        search_timeout = min(15.0, max(0.001, cur_rem - RESEARCH_WRAPUP_BUFFER))
+                        items = await asyncio.wait_for(web_tools.search(q), timeout=search_timeout)
                     except Exception as exc:
                         items = []
                         if on_event:
@@ -771,23 +812,35 @@ async def run_research_gemini(
                         )
                         sources.append(src)
 
-                    success_map, failure_map = await web_tools.extract([url])
-                    if url in success_map:
-                        txt = success_map[url]
-                        src.kind = "fetched_page"
-                        src.retrieval_status = "read"
-                        page_texts[src.id] = txt
-                        res_payload = {"id": src.id, "url": url, "text": txt}
-                    else:
-                        err_msg = failure_map.get(url, "Failed fetch")
+                    src.kind = "fetched_page"
+                    try:
+                        cur_rem = (mono_deadline - time.monotonic()) if mono_deadline is not None else (deadline - time.time())
+                        extract_timeout = min(15.0, max(0.001, cur_rem - RESEARCH_WRAPUP_BUFFER))
+                        success_map, failure_map = await asyncio.wait_for(
+                            web_tools.extract([url]),
+                            timeout=extract_timeout,
+                        )
+                        txt = (success_map.get(url) or "").strip()
+                        if txt:
+                            src.retrieval_status = "read"
+                            page_texts[src.id] = txt
+                            res_payload = {"id": src.id, "url": url, "text": txt}
+                        else:
+                            err_msg = failure_map.get(url, "Empty page content returned")
+                            src.retrieval_status = "failed"
+                            src.title = f"Failed fetch ({err_msg[:60]})"
+                            res_payload = {"id": src.id, "error": err_msg}
+                    except Exception as exc:
+                        from app.llm_gemini import _sanitize_error
+                        safe_err = _sanitize_error(str(exc))[:60]
                         src.retrieval_status = "failed"
-                        src.title = f"Failed fetch ({err_msg[:60]})"
-                        res_payload = {"id": src.id, "error": err_msg}
+                        src.title = f"Failed fetch ({safe_err})"
+                        res_payload = {"id": src.id, "error": safe_err}
                 parts.append(types.Part.from_function_response(name="read_page", response=res_payload))
 
         contents.append(types.Content(role="user", parts=parts))
         turns += 1
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(2.5)
 
     successful_page_reads = sum(1 for s in sources if s.retrieval_status == "read")
     run_stats = {

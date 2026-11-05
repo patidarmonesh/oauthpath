@@ -177,8 +177,10 @@
                     {% if step.effort and guide_html.format_estimate(step.effort) != 'unknown' %}
                     <p class="step-effort"><small>Effort: {{ guide_html.format_estimate(step.effort) }}</small></p>
                     {% endif %}
-                    {% if step.action_url %}
+                    {% if step.action_url and step.action_url.startswith('https://') %}
                     <p><a href="{{ step.action_url }}" target="_blank" rel="noopener">{{ step.action_url }}</a></p>
+                    {% elif step.action_url %}
+                    <p><span>{{ step.action_url }}</span></p>
                     {% endif %}
                 </li>
                 {% endfor %}

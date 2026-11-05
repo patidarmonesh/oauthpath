@@ -18,11 +18,11 @@ def format_owner(owner: str) -> str:
     return OWNER_LABELS.get(owner, owner.replace("_", " ").title())
 
 
-def escape_cell(text: str) -> str:
-    """Escape vertical pipe characters for Markdown table cells."""
-    if not text:
+def escape_cell(text) -> str:
+    """Escape vertical pipe characters and newlines for Markdown table cells."""
+    if text is None or text == "":
         return ""
-    return str(text).replace("|", "\\|").replace("\n", " ")
+    return str(text).replace("|", "\\|").replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
 
 
 def format_estimate(est) -> str:
@@ -50,14 +50,14 @@ def format_estimate(est) -> str:
         return f"unknown — {explanation}" if explanation else "unknown"
 
     parts = []
-    if low and high:
+    if low is not None and high is not None:
         if low == high:
             parts.append(f"{low}")
         else:
             parts.append(f"{low}–{high}")
-    elif low:
+    elif low is not None:
         parts.append(f"~{low}")
-    elif high:
+    elif high is not None:
         parts.append(f"up to {high}")
 
     unit = getattr(est, "unit", "")

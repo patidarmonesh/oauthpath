@@ -164,8 +164,8 @@ class Store:
         conn = self._get_conn()
         try:
             row = conn.execute(
-                "SELECT data FROM guides WHERE id = ? ORDER BY version DESC LIMIT 1",
-                (guide_id,)
+                "SELECT data FROM guides WHERE id = ? AND status != ? ORDER BY version DESC LIMIT 1",
+                (guide_id, GuideStatus.retracted.value)
             ).fetchone()
             if row:
                 return self._parse_guide_data(row["data"])
@@ -320,8 +320,8 @@ class Store:
             conn = self._get_conn()
             try:
                 row = conn.execute(
-                    "SELECT data FROM guides WHERE id = ? AND version = ?",
-                    (guide_id, version)
+                    "SELECT data FROM guides WHERE id = ? AND version = ? AND status != ?",
+                    (guide_id, version, GuideStatus.retracted.value)
                 ).fetchone()
                 if not row:
                     return False
@@ -343,17 +343,18 @@ class Store:
                    audience: str = "external customers", website: str = "",
                    client_ip: str = "") -> None:
         now = datetime.now(timezone.utc).isoformat()
-        conn = self._get_conn()
-        try:
-            conn.execute(
-                "INSERT INTO jobs (id, status, app_name, feature, audience, website, "
-                "client_ip, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (job_id, JobStatus.queued.value, app_name, feature, audience,
-                 website, client_ip, now, now)
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "INSERT INTO jobs (id, status, app_name, feature, audience, website, "
+                    "client_ip, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (job_id, JobStatus.queued.value, app_name, feature, audience,
+                     website, client_ip, now, now)
+                )
+                conn.commit()
+            finally:
+                conn.close()
 
     def update_job(self, job_id: str, **kwargs) -> None:
         for k in kwargs:

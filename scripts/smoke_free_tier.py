@@ -36,7 +36,7 @@ async def main() -> int:
             contents=["Respond with the exact word: OK"],
             system="You are a system health check.",
             timeout_s=30.0,
-            max_output_tokens=256,
+            max_output_tokens=1024,
         )
         text_out = (resp.text or "").strip()
         if not text_out:
@@ -97,7 +97,7 @@ async def main() -> int:
             system="Return JSON matching the schema exactly.",
             json_schema=mini_schema,
             timeout_s=30.0,
-            max_output_tokens=256,
+            max_output_tokens=1024,
         )
         json_out = (resp.text or "").strip()
         if not json_out:
