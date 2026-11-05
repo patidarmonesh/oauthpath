@@ -1,0 +1,1233 @@
+{
+  "schema_version": "2",
+  "prompt_version": "1",
+  "id": "slack-e07c7c36",
+  "version": 4,
+  "created_at": "2026-11-05T12:06:07.298099+00:00",
+  "status": "draft",
+  "cache_key": "slack|slack.com|read channel history and post summaries in customers' workspaces|external customers|server-side|sv2|pv1",
+  "provider": {
+    "name": "Slack",
+    "official_domain": "slack.com",
+    "identity_status": "resolved"
+  },
+  "scenario": {
+    "feature": "Read channel history and post summaries in customers' workspaces",
+    "audience": "external customers",
+    "deployment": "server-side",
+    "assumptions": []
+  },
+  "composio": {
+    "toolkit_slug": "slack",
+    "lookup_status": "matched",
+    "selected_auth_method": "OAUTH2",
+    "managed_oauth": "available",
+    "required_config_fields": [
+      "client_id",
+      "client_secret"
+    ],
+    "required_connect_fields": [],
+    "auth_guide_url": null,
+    "checked_at": "2026-11-05T11:03:38.440186+00:00",
+    "source_id": "C1"
+  },
+  "guide": {
+    "oauth_support": "confirmed",
+    "summary": [
+      {
+        "text": "Slack supports OAuth 2.0 authorization code flow to grant bot and user tokens access to customer workspaces.",
+        "claim_ids": [
+          "K1"
+        ]
+      },
+      {
+        "text": "Reading public channel history requires requesting the channels:history scope, and posting channel summaries requires the chat:write scope.",
+        "claim_ids": [
+          "K2",
+          "K3"
+        ]
+      },
+      {
+        "text": "Apps can be tested unlisted during early customer pilots, but apps intended for commercial distribution at scale must be submitted and approved for the Slack Marketplace, which takes up to 10 weeks for review.",
+        "claim_ids": [
+          "K4",
+          "K6"
+        ]
+      },
+      {
+        "text": "Customer workspace administrators can enforce approval gates requiring admin permission before app installation.",
+        "claim_ids": [
+          "K5"
+        ]
+      },
+      {
+        "text": "Slack explicitly prohibits using customer data collected by apps to train LLMs, and listing on the Slack Marketplace incurs no fee.",
+        "claim_ids": [
+          "K7",
+          "K8"
+        ]
+      },
+      {
+        "text": "Managed OAuth via Composio is available as an alternative setup path that can also suit production.",
+        "claim_ids": [
+          "K10"
+        ]
+      }
+    ],
+    "next_action": {
+      "instruction": "Configure the Slack app with required scopes (channels:history, chat:write) and security controls (TLS 1.2+, OAuth state parameter) to enable unlisted pilot testing while preparing submission materials for the Slack Marketplace review process.",
+      "owner": "you",
+      "link_or_artifact": "https://api.slack.com/authentication/oauth-v2",
+      "success_condition": "Slack app configured with correct scopes and security controls ready for unlisted testing and Marketplace submission.",
+      "claim_ids": [
+        "K1",
+        "K2",
+        "K3",
+        "K6",
+        "K9"
+      ]
+    },
+    "recommended_path_id": "own_app_production",
+    "paths": [
+      {
+        "id": "composio_managed",
+        "name": "Composio-managed OAuth",
+        "applicability": "When Composio's consent branding, default scopes, and shared quota fit your use case",
+        "gates": [],
+        "prerequisites": [
+          {
+            "text": "A Composio account and API key",
+            "owner": "you",
+            "claim_ids": [
+              "KC1"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Composio's name on the consent screen",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          },
+          {
+            "text": "Composio's default scopes (may not cover your needs)",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          },
+          {
+            "text": "Quota shared across Composio users",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          },
+          {
+            "text": "Trigger polling minimum (see Composio docs for current value)",
+            "owner": "you",
+            "claim_ids": [
+              "KC3"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "managed_connect",
+            "title": "Create managed auth config and connect",
+            "instructions": "Create a managed auth config for toolkit `slack`, connect a test user, and confirm ACTIVE status server-side. No registration wait for your own provider OAuth app.",
+            "owner": "agent_prepares_you_submit",
+            "step_dependencies": [],
+            "success_condition": "Connected account status is ACTIVE",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 15,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Assumes eligible Composio account",
+              "claim_ids": []
+            },
+            "claim_ids": [
+              "KC1",
+              "KC3"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 5,
+          "high": 15,
+          "unit": "minutes",
+          "basis": "author_estimate",
+          "explanation": "Assumes eligible Composio account",
+          "claim_ids": []
+        },
+        "waiting": {
+          "known": false,
+          "low": null,
+          "high": null,
+          "unit": "not_applicable",
+          "basis": "unknown",
+          "explanation": "",
+          "claim_ids": []
+        },
+        "costs": [],
+        "claim_ids": [
+          "KC1",
+          "KC3"
+        ]
+      },
+      {
+        "id": "own_app_testing",
+        "name": "Unlisted Slack App Development and Pilot Testing",
+        "applicability": "Internal testing and unlisted customer pilot deployments prior to commercial launch.",
+        "gates": [
+          {
+            "kind": "customer_admin_action",
+            "state": "required",
+            "note": "Workspace admins may enforce approval requirements so users cannot directly install unlisted apps without admin permission.",
+            "claim_ids": [
+              "K5"
+            ]
+          },
+          {
+            "kind": "app_review",
+            "state": "not_required",
+            "note": "Unlisted pilot testing does not require prior Slack Marketplace app review.",
+            "claim_ids": [
+              "K4"
+            ]
+          },
+          {
+            "kind": "security_assessment",
+            "state": "not_required",
+            "note": "Formal Marketplace security review is not required for unlisted testing, but state parameter and TLS 1.2+ should be implemented.",
+            "claim_ids": [
+              "K9"
+            ]
+          },
+          {
+            "kind": "ai_data_use_terms",
+            "state": "required",
+            "note": "Slack App Developer Policy explicitly prohibits using customer data collected by apps to train LLMs.",
+            "claim_ids": [
+              "K7"
+            ]
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "Slack developer account and access to a workspace to create the app.",
+            "owner": "you",
+            "claim_ids": [
+              "K1"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Unlisted non-Marketplace apps are subject to specific platform rate limits.",
+            "owner": "you",
+            "claim_ids": [
+              "K4"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "create_app",
+            "title": "Create Slack App and set OAuth Redirect URI",
+            "instructions": "Navigate to the Slack App Dashboard, create a new application, and configure your OAuth redirect URL.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "App created and OAuth redirect URI saved.",
+            "action_url": "https://api.slack.com/authentication/oauth-v2",
+            "effort": {
+              "known": true,
+              "low": 30,
+              "high": 60,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Standard OAuth app setup duration in the Slack Developer Portal.",
+              "claim_ids": [
+                "K1"
+              ]
+            },
+            "claim_ids": [
+              "K1"
+            ]
+          },
+          {
+            "id": "add_scopes",
+            "title": "Configure Bot Token Scopes",
+            "instructions": "Add the channels:history scope to read public channel messages and chat:write to send summary messages.",
+            "owner": "you",
+            "step_dependencies": [
+              "create_app"
+            ],
+            "success_condition": "Permissions channels:history and chat:write saved under Bot Token Scopes.",
+            "action_url": "https://api.slack.com/scopes",
+            "effort": {
+              "known": true,
+              "low": 15,
+              "high": 30,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Selecting and saving required scopes in the app settings.",
+              "claim_ids": [
+                "K2",
+                "K3"
+              ]
+            },
+            "claim_ids": [
+              "K2",
+              "K3"
+            ]
+          },
+          {
+            "id": "security_controls",
+            "title": "Implement State Parameter and TLS 1.2+",
+            "instructions": "Ensure your server-side OAuth implementation includes anti-forgery state parameter validation and uses TLS 1.2 or higher.",
+            "owner": "you",
+            "step_dependencies": [
+              "add_scopes"
+            ],
+            "success_condition": "OAuth flow validates state parameter over TLS 1.2+ endpoint.",
+            "action_url": "https://api.slack.com/slack-marketplace/guidelines",
+            "effort": {
+              "known": true,
+              "low": 1,
+              "high": 2,
+              "unit": "hours",
+              "basis": "author_estimate",
+              "explanation": "Coding state parameter generation and validation in backend authorization handlers.",
+              "claim_ids": [
+                "K9"
+              ]
+            },
+            "claim_ids": [
+              "K9"
+            ]
+          },
+          {
+            "id": "composio_wiring",
+            "title": "Connect through Composio",
+            "instructions": "Create a Composio auth config for toolkit `slack` with your client ID and secret (custom auth, OAUTH2, oauth_redirect_uri = https://backend.composio.dev/api/v3/toolkits/auth/callback). Create a Connect Link for a test user, complete consent, and confirm an ACTIVE connected account via the API.",
+            "owner": "agent_prepares_you_submit",
+            "step_dependencies": [],
+            "success_condition": "Connected account status is ACTIVE via the Composio API",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 20,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Assumes the provider app already exists",
+              "claim_ids": []
+            },
+            "claim_ids": [
+              "KC1",
+              "KC2"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 2,
+          "high": 4,
+          "unit": "hours",
+          "basis": "author_estimate",
+          "explanation": "Estimated time to register the app, set up scopes, and write security handling logic.",
+          "claim_ids": [
+            "K1",
+            "K2",
+            "K3",
+            "K9"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 0,
+          "high": 0,
+          "unit": "calendar_days",
+          "basis": "author_estimate",
+          "explanation": "No external provider approval wait time required for unlisted pilot testing.",
+          "claim_ids": [
+            "K4"
+          ]
+        },
+        "costs": [
+          {
+            "description": "Slack Developer App Creation and Testing",
+            "amount": "0 USD",
+            "basis": "provider_estimate",
+            "claim_ids": [
+              "K8"
+            ]
+          }
+        ],
+        "claim_ids": [
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "K7",
+          "K8",
+          "K9"
+        ]
+      },
+      {
+        "id": "own_app_production",
+        "name": "Slack Marketplace Distribution for External Commercial Customers",
+        "applicability": "Full commercial launch to external customers requiring listing in the Slack Marketplace.",
+        "gates": [
+          {
+            "kind": "app_review",
+            "state": "required",
+            "note": "Slack Marketplace review requires meeting all developer policies and maintaining at least 10 active workspace installations throughout the review period.",
+            "claim_ids": [
+              "K4",
+              "K11"
+            ]
+          },
+          {
+            "kind": "security_assessment",
+            "state": "required",
+            "note": "Marketplace approval requires apps to use TLS 1.2+ and implement the OAuth state parameter to prevent forgery attacks.",
+            "claim_ids": [
+              "K9"
+            ]
+          },
+          {
+            "kind": "customer_admin_action",
+            "state": "required",
+            "note": "Workspace admins can enforce approval gates requiring admin consent prior to installation.",
+            "claim_ids": [
+              "K5"
+            ]
+          },
+          {
+            "kind": "ai_data_use_terms",
+            "state": "required",
+            "note": "Slack App Developer Policy explicitly prohibits using customer data collected by apps to train LLMs.",
+            "claim_ids": [
+              "K7"
+            ]
+          },
+          {
+            "kind": "paid_access",
+            "state": "not_required",
+            "note": "Slack does not charge fees for Marketplace inclusion.",
+            "claim_ids": [
+              "K8"
+            ]
+          },
+          {
+            "kind": "business_or_identity_verification",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          },
+          {
+            "kind": "partner_program",
+            "state": "unknown",
+            "note": "Not established by research",
+            "claim_ids": []
+          }
+        ],
+        "prerequisites": [
+          {
+            "text": "Completed Slack app implementation with TLS 1.2+, state parameter enforcement, and compliant LLM data handling policies.",
+            "owner": "you",
+            "claim_ids": [
+              "K7",
+              "K9"
+            ]
+          },
+          {
+            "text": "At least 10 active workspace installations maintained throughout review",
+            "owner": "you",
+            "claim_ids": [
+              "K11"
+            ]
+          }
+        ],
+        "limits": [
+          {
+            "text": "Marketplace review turnaround takes up to 10 weeks for new app submissions.",
+            "owner": "provider",
+            "claim_ids": [
+              "K6"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "compliance_audit",
+            "title": "Verify Security and Developer Policy Requirements",
+            "instructions": "Audit app implementation for TLS 1.2+ enforcement, OAuth state validation, and confirm customer data is not used for LLM training.",
+            "owner": "you",
+            "step_dependencies": [],
+            "success_condition": "Security checks pass and data handling policies comply with Slack guidelines.",
+            "action_url": "https://api.slack.com/slack-marketplace/guidelines",
+            "effort": {
+              "known": true,
+              "low": 2,
+              "high": 4,
+              "unit": "hours",
+              "basis": "author_estimate",
+              "explanation": "Internal review of security settings and data usage documentation.",
+              "claim_ids": [
+                "K7",
+                "K9"
+              ]
+            },
+            "claim_ids": [
+              "K7",
+              "K9"
+            ]
+          },
+          {
+            "id": "submit_marketplace",
+            "title": "Verify 10 Active Workspace Installs & Submit to Marketplace",
+            "instructions": "Verify that your app has at least 10 active workspace installations and maintains this threshold throughout the review period, as required by the official Slack notice. Then complete the Marketplace submission form in the Slack App Management Dashboard and submit for review.",
+            "owner": "you",
+            "step_dependencies": [
+              "compliance_audit"
+            ],
+            "success_condition": "App submission submitted successfully to Slack review team.",
+            "action_url": "https://docs.slack.dev/changelog/2026/09/01/slack-marketplace-install-requirement/",
+            "effort": {
+              "known": true,
+              "low": 1,
+              "high": 2,
+              "unit": "hours",
+              "basis": "author_estimate",
+              "explanation": "Filling out listing metadata, installation instructions, and submission details.",
+              "claim_ids": [
+                "K4",
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K4",
+              "K6",
+              "K11"
+            ]
+          },
+          {
+            "id": "marketplace_review_period",
+            "title": "Complete Marketplace Review Process",
+            "instructions": "Respond to feedback from Slack reviewers during the review window (up to 10 weeks for new submissions).",
+            "owner": "provider",
+            "step_dependencies": [
+              "submit_marketplace"
+            ],
+            "success_condition": "App receives official Slack Marketplace approval and listing.",
+            "action_url": "https://api.slack.com/slack-marketplace/review-guide",
+            "effort": {
+              "known": false,
+              "low": null,
+              "high": null,
+              "unit": "not_applicable",
+              "basis": "unknown",
+              "explanation": "External evaluation period conducted by Slack's review team.",
+              "claim_ids": [
+                "K6"
+              ]
+            },
+            "claim_ids": [
+              "K6"
+            ]
+          },
+          {
+            "id": "own_app_production_composio_wiring",
+            "title": "Connect through Composio",
+            "instructions": "Create a Composio auth config for toolkit `slack` with your client ID and secret (custom auth, OAUTH2, oauth_redirect_uri = https://backend.composio.dev/api/v3/toolkits/auth/callback). Create a Connect Link for a test user, complete consent, and confirm an ACTIVE connected account via the API.",
+            "owner": "agent_prepares_you_submit",
+            "step_dependencies": [],
+            "success_condition": "Connected account status is ACTIVE via the Composio API",
+            "action_url": "",
+            "effort": {
+              "known": true,
+              "low": 5,
+              "high": 20,
+              "unit": "minutes",
+              "basis": "author_estimate",
+              "explanation": "Assumes the provider app already exists",
+              "claim_ids": []
+            },
+            "claim_ids": [
+              "KC1",
+              "KC2"
+            ]
+          }
+        ],
+        "effort": {
+          "known": true,
+          "low": 3,
+          "high": 6,
+          "unit": "hours",
+          "basis": "author_estimate",
+          "explanation": "Time required to prepare submission documentation, verify compliance, and submit to the Slack Marketplace.",
+          "claim_ids": [
+            "K4",
+            "K7",
+            "K9"
+          ]
+        },
+        "waiting": {
+          "known": true,
+          "low": 42,
+          "high": 70,
+          "unit": "calendar_days",
+          "basis": "provider_estimate",
+          "explanation": "Slack Marketplace review takes up to 10 weeks (70 calendar days) for new app submissions.",
+          "claim_ids": [
+            "K6"
+          ]
+        },
+        "costs": [
+          {
+            "description": "Slack Marketplace Inclusion Fee",
+            "amount": "0 USD",
+            "basis": "provider_estimate",
+            "claim_ids": [
+              "K8"
+            ]
+          }
+        ],
+        "claim_ids": [
+          "K4",
+          "K5",
+          "K6",
+          "K7",
+          "K8",
+          "K9"
+        ]
+      }
+    ],
+    "scopes": [
+      {
+        "scope_string": "channels:history",
+        "purpose": "View messages and content in public channels where the app has been added to read context and summarize activity.",
+        "classification": "read",
+        "claim_ids": [
+          "K3"
+        ]
+      },
+      {
+        "scope_string": "chat:write",
+        "purpose": "Send message summaries to channels.",
+        "classification": "write",
+        "claim_ids": [
+          "K2"
+        ]
+      }
+    ],
+    "blockers": [
+      {
+        "trigger": "Customer workspace administrator enforces admin approval requirements for third-party app installations.",
+        "consequence": "End users in the customer workspace cannot complete app installation independently.",
+        "resolution": "Provide administrative guidance so workspace admins can approve and install the app.",
+        "owner": "your_customer_admin",
+        "claim_ids": [
+          "K5"
+        ]
+      },
+      {
+        "trigger": "App uses customer data collected via Slack API to train LLMs.",
+        "consequence": "Violation of Slack App Developer Policy resulting in Marketplace rejection or app de-listing.",
+        "resolution": "Ensure data pipelines process workspace data strictly for context and summarization without retaining or using it for model training.",
+        "owner": "you",
+        "claim_ids": [
+          "K7"
+        ]
+      }
+    ],
+    "agent_assistance": [
+      {
+        "capability": "Scope configuration mapping",
+        "description": "Draft app manifests containing channels:history and chat:write scopes matching the required feature set."
+      },
+      {
+        "capability": "Marketplace submission pre-check",
+        "description": "Validate app endpoints against security requirements including state parameter enforcement and TLS 1.2+ configuration."
+      }
+    ],
+    "unknowns": [
+      {
+        "question": "What exact rate limits apply to unlisted non-Marketplace apps under the May 2025 platform terms update?",
+        "why_it_matters": "Determines if an unlisted pilot agent can handle high-volume workspace activity prior to Marketplace approval.",
+        "how_to_find_out": "Check the Slack API Web API rate limits documentation or submit an inquiry to Slack Developer Support."
+      },
+      {
+        "question": "Are additional compliance evaluations required if the AI agent connects via Slack's Model Context Protocol (MCP) server framework?",
+        "why_it_matters": "MCP-enabled Slack apps face extra review criteria beyond standard Marketplace checks.",
+        "how_to_find_out": "Review Slack's official documentation on distributing apps with MCP servers on the Slack Marketplace."
+      }
+    ],
+    "conflicts": [
+      {
+        "topic": "Unlisted Pilot Distribution vs. Mandatory Marketplace Review",
+        "description": "While unlisted distribution is permitted for early customer pilots, Slack's updated policy mandates Marketplace submission for commercial distribution at scale and imposes rate limits on unlisted non-Marketplace apps.",
+        "source_ids": [
+          "S7",
+          "S10",
+          "S12"
+        ],
+        "resolution": "Use unlisted app distribution during pilot testing, then complete the official Slack Marketplace review prior to broad commercial release."
+      }
+    ],
+    "claims": [
+      {
+        "id": "K1",
+        "text": "Slack supports third-party OAuth 2.0 authorization code flow to grant bot and user tokens access to customer workspaces.",
+        "conditions": "Standard OAuth 2.0 implementation for third-party workspace installation.",
+        "source_ids": [
+          "S4"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K2",
+        "text": "Posting channel summary messages requires requesting the chat:write permission scope for calling chat.postMessage.",
+        "conditions": "App needs to send messages to channels.",
+        "source_ids": [
+          "S2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K3",
+        "text": "Reading public channel history requires the channels:history scope, classified as granting access to view messages in public channels where the app has been added.",
+        "conditions": "App needs to read messages in public channels.",
+        "source_ids": [
+          "S6"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K4",
+        "text": "Apps can be tested unlisted during early customer pilots, but apps intended for commercial distribution at scale must be submitted and approved for the Slack Marketplace.",
+        "conditions": "Commercial scaling requires Slack Marketplace review.",
+        "source_ids": [
+          "S7"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K5",
+        "text": "Customer workspace administrators can enforce approval gates, requiring users to request admin approval before installing third-party apps.",
+        "conditions": "Workspace admin has restricted direct app installations.",
+        "source_ids": [
+          "S7"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K6",
+        "text": "Review turnaround times for new Slack Marketplace app submissions take up to 10 weeks, while resubmissions for published apps take up to 6 weeks.",
+        "conditions": "App submitted to Slack Marketplace review.",
+        "source_ids": [
+          "S9"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K7",
+        "text": "Slack updated its App Developer Policy to explicitly prohibit using customer data collected by apps to train LLMs.",
+        "conditions": "App handling customer data collected via Slack API.",
+        "source_ids": [
+          "S10"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K8",
+        "text": "Listing an app in the Slack Marketplace does not incur any fee from Slack.",
+        "conditions": "Developers meeting Marketplace guidelines.",
+        "source_ids": [
+          "S12"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K9",
+        "text": "Mandatory security requirements for Marketplace approval require apps to use TLS 1.2+ and implement the OAuth state parameter to prevent forgery attacks.",
+        "conditions": "Requesting access to customer data during OAuth flow.",
+        "source_ids": [
+          "S11"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "To prevent forgery attacks, your app must use the state parameter when requesting access to customer data during the OAuth flow.",
+        "excerpt_status": "not_found",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K10",
+        "text": "Composio provides a managed OAuth toolkit for Slack.",
+        "conditions": "Using Composio integration layer.",
+        "source_ids": [
+          "C1"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "KC1",
+        "text": "Composio toolkit `slack` supports OAUTH2 with managed OAuth available",
+        "conditions": "",
+        "source_ids": [
+          "C1"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "KC2",
+        "text": "Composio OAuth redirect URI is https://backend.composio.dev/api/v3/toolkits/auth/callback",
+        "conditions": "",
+        "source_ids": [
+          "C2"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "KC3",
+        "text": "Composio managed OAuth apps can remain in production when branding, default scopes, and quotas fit",
+        "conditions": "",
+        "source_ids": [
+          "C3"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "",
+        "excerpt_status": "not_checked",
+        "review_result": "not_reviewed",
+        "support_note": ""
+      },
+      {
+        "id": "K11",
+        "text": "Slack Marketplace submission requires an app to have at least 10 active workspace installations and maintain this threshold throughout the review process.",
+        "conditions": "App submission to the public Slack Marketplace",
+        "source_ids": [
+          "S13"
+        ],
+        "attempt_ids": [],
+        "basis": "documented",
+        "excerpt": "As of July 2026, we require that apps submitting to the Slack Marketplace have at least 10 installations on active workspaces, up from the temporary lower threshold. Your app needs to stay at 10 or more installed workspaces throughout the entire duration of the review.",
+        "excerpt_status": "verified",
+        "review_result": "supported",
+        "support_note": "Exact quote from official Slack Developer changelog notice dated September 1, 2026."
+      }
+    ]
+  },
+  "difficulty": {
+    "composio_managed": {
+      "label": "Straightforward",
+      "reasons": [],
+      "unknown_gates": []
+    },
+    "own_app_testing": {
+      "label": "Requires coordination",
+      "reasons": [
+        "Required: Customer Admin Action",
+        "Required: Ai Data Use Terms"
+      ],
+      "unknown_gates": []
+    },
+    "own_app_production": {
+      "label": "Substantial external requirements (provisional)",
+      "reasons": [
+        "Required: App Review",
+        "Required: Security Assessment",
+        "Required: Customer Admin Action",
+        "Required: Ai Data Use Terms",
+        "Not established: Business Or Identity Verification",
+        "Not established: Partner Program"
+      ],
+      "unknown_gates": [
+        "business_or_identity_verification",
+        "partner_program"
+      ]
+    },
+    "overall": {
+      "label": "Substantial external requirements (provisional)",
+      "reasons": [
+        "Required: App Review",
+        "Required: Security Assessment",
+        "Required: Customer Admin Action",
+        "Required: Ai Data Use Terms",
+        "Not established: Business Or Identity Verification",
+        "Not established: Partner Program",
+        "Based on production path: own_app_production"
+      ],
+      "unknown_gates": [
+        "business_or_identity_verification",
+        "partner_program"
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "C1",
+      "url": "https://backend.composio.dev/api/v3/toolkits/slack",
+      "final_url": "",
+      "title": "Composio toolkit: slack",
+      "kind": "composio_api",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": "2026-11-05T11:03:38.440186+00:00",
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S2",
+      "url": "https://api.slack.com/docs/oauth-scopes",
+      "final_url": "",
+      "title": "Legacy OAuth scopes | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:45.177443+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S4",
+      "url": "https://api.slack.com/authentication/oauth-v2",
+      "final_url": "",
+      "title": "Installing via OAuth authorization code flow | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:45.177443+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S6",
+      "url": "https://api.slack.com/scopes/channels:history",
+      "final_url": "",
+      "title": "channels:history scope | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:45.177443+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S7",
+      "url": "https://api.slack.com/distribution",
+      "final_url": "",
+      "title": "App lifecycle & distribution | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:54.019560+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S9",
+      "url": "https://api.slack.com/slack-marketplace/review-guide",
+      "final_url": "",
+      "title": "Slack Marketplace review process | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:54.019560+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S10",
+      "url": "https://api.slack.com/changelog",
+      "final_url": "",
+      "title": "Changelog | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:54.020571+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S11",
+      "url": "https://api.slack.com/slack-marketplace/guidelines",
+      "final_url": "",
+      "title": "Slack Marketplace app guidelines and requirements | Slack Developer Docs",
+      "kind": "fetched_page",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:54.020571+00:00",
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S12",
+      "url": "https://api.slack.com/changelog/2025-05-terms-rate-limit-update-and-faq",
+      "final_url": "",
+      "title": "Rate limit changes for non-Marketplace apps | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:04:02.616289+00:00",
+      "publication_date": "Thu, 29 May 2025 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "C2",
+      "url": "https://docs.composio.dev/docs/authentication/programmatic-auth-configs",
+      "final_url": "",
+      "title": "Composio programmatic auth configs",
+      "kind": "maintainer_reference",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "reference_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "C3",
+      "url": "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+      "final_url": "",
+      "title": "Composio custom app vs managed app",
+      "kind": "maintainer_reference",
+      "provider_domain": false,
+      "provider_domain_status": "third_party",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "reference_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S13",
+      "url": "https://docs.slack.dev/changelog/2026/09/01/slack-marketplace-install-requirement/",
+      "final_url": "",
+      "title": "Updated installation requirement for Slack Marketplace apps",
+      "kind": "fetched_page",
+      "provider_domain": false,
+      "provider_domain_status": "unknown",
+      "retrieval_time": null,
+      "publication_date": null,
+      "retrieval_status": "read",
+      "excerpt": "As of July 2026, we require that apps submitting to the Slack Marketplace have at least 10 installations on active workspaces, up from the temporary lower threshold. Your app needs to stay at 10 or more installed workspaces throughout the entire duration of the review.",
+      "content_hash": ""
+    }
+  ],
+  "uncited_sources": [
+    {
+      "id": "S3",
+      "url": "https://api.slack.com/methods/oauth.access",
+      "final_url": "",
+      "title": "oauth.access method | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:45.177443+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S5",
+      "url": "https://api.slack.com/authentication/token-types",
+      "final_url": "",
+      "title": "Tokens | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:45.177443+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S8",
+      "url": "https://api.slack.com/changelog/2018-05-identifying-breaking-changes-in-the-slack-api",
+      "final_url": "",
+      "title": "Changelog | Slack",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:03:54.019560+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S13",
+      "url": "https://api.slack.com/developer-policy",
+      "final_url": "",
+      "title": "Slack App Developer Policy | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:04:02.616289+00:00",
+      "publication_date": "Tue, 10 Dec 2024 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S14",
+      "url": "https://api.slack.com/methods/admin.apps.activities.list",
+      "final_url": "",
+      "title": "admin.apps.activities.list method | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:04:10.822439+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S15",
+      "url": "https://api.slack.com/changelog/2020-01-deprecating-antecedents-to-the-conversations-api",
+      "final_url": "",
+      "title": "Deprecating antecedents to the conversations API | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:04:10.823995+00:00",
+      "publication_date": "Tue, 07 Jan 2020 00:00:00 GMT",
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    },
+    {
+      "id": "S16",
+      "url": "https://api.slack.com/automation/cli/errors",
+      "final_url": "",
+      "title": "Slack CLI errors reference | Slack Developer Docs",
+      "kind": "search_result",
+      "provider_domain": true,
+      "provider_domain_status": "official",
+      "retrieval_time": "2026-11-05T11:04:10.823995+00:00",
+      "publication_date": null,
+      "retrieval_status": "search_snippet_only",
+      "excerpt": "",
+      "content_hash": ""
+    }
+  ],
+  "attempts": [],
+  "review": {
+    "reviewer": null,
+    "reviewed_at": null,
+    "audited_claim_ids": [],
+    "based_on_version": null
+  },
+  "warnings": [
+    "Path own_app_production: added unknown gate 'business_or_identity_verification'",
+    "Path own_app_production: added unknown gate 'partner_program'",
+    "Added Composio-managed path based on confirmed toolkit metadata",
+    "Gate business_or_identity_verification: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Gate partner_program: all supporting claims are 'unknown' — assertion is weakly supported",
+    "Claim K9: excerpt not found in source S11 (ratio=51)",
+    "Moved 7 uncited source(s) to uncited_sources"
+  ],
+  "run": {
+    "model_calls": 7,
+    "searches": 4,
+    "page_reads": 1,
+    "fetch_attempts": 1,
+    "tokens_input": 61524,
+    "tokens_output": 5791,
+    "cost": "unavailable",
+    "cost_basis": "Price not configured for cost calculation",
+    "model": "gemini-3.6-flash",
+    "duration_seconds": 125.1,
+    "research_timed_out": false
+  },
+  "retraction_reason": null
+}

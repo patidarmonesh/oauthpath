@@ -24,6 +24,8 @@ Before starting the server, set LLM_PROVIDER=gemini, GEMINI_MODEL, GEMINI_API_KE
 
 ## Verification and limits
 
-The developer approved one GitHub test connection. A source check found consequential errors in earlier Slack and Gmail guidance. The verification notes give the corrections and their sources. [Verification notes](docs/VERIFICATION.md)
+- **Developer verification (Monesh Patidar):** Personally executed GitHub OAuth consent in the browser, verifying a real connected test account via the Composio SDK (`ca_mRIPTDQRWMQm`). Confirmed that full human claim audit across all providers remains pending; bundled guides are honestly labeled as drafts (`not human-reviewed`).
+- **Primary source & code checks:** Verified against official developer documentation: exact Slack Marketplace notice citation (10 active workspace installations maintained during review) and Google Workspace API scope classification (distinguishing send-only sensitive access from inbox-reading restricted access requiring annual CASA Tier 2 security assessment).
+- **Test execution:** 259 automated tests passing (50.30s). Dual-database startup verified across fresh empty SQLite databases and existing database copies, with version 4 serving as the latest corrected version and v3 preserved. [Verification notes](docs/VERIFICATION.md)
 
-A clean checkout pre-populates with three verified reference guides in `data/reviewed/` (GitHub, Slack, and Gmail). Model quotas can interrupt live generation on free-tier keys. Public deployment and source links are pending.
+A clean checkout pre-populates with verified reference guides in `data/reviewed/` (GitHub, Slack, and Gmail). Model quotas can interrupt live generation on free-tier keys. Public deployment and source links are pending.
